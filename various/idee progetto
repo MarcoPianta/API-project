@@ -1,0 +1,60 @@
+rel rel rel rel rel
+rel rel rel rel rel
+rel rel rel rel rel
+rel rel rel rel rel
+rel rel rel rel rel
+
+    salvare utenti principalmente:
+
+°
+salvare relazioni (nomi delle relazioni) in una metrice delle adiacenze --> grafo
+                                    ˄
+                                    |
+forse possibile ottimizzazione spaziale usando liste che simulano array ma ci
+        sono solo i blocchi effettivamente allocati, es 1 di seguito
+                                    |
+            bisogna vedere se le celle vuote in un array occupano
+              spazio se non lo occupano --> array fa questa cosa
+
+°
+usare due hash fucntion per trovare indici della matrice (se uso liste problema
+perchè non c'è indice bisogna aggiungere un array iniziale che contenga le liste
+e l'hash function da indice dell'array, es 2 di seguito)
+
+    salvare relazioni principalmente:
+
+°
+posso creare struttura dati salvando le relazioni che mi dice quali utenti hanno
+quelle relazioni, ad esempio un BST (in ordine alfabetico) in cui i nodi sono la
+testa di una lista che contiene i riferimenti agli utenti con la direzione della
+relazione
+
+°
+BST in ordine alfabetico e ogni nodo punta ad una matrice delle adiacenze per un
+grafo tra utenti che contiene come elementi booleani che dicono se la relazione
+tra i due utenti c'è o meno       <-- forse è pesante come struttura dati
+
+
+      esempi per ricordarmi le idee:
+
+1)
+rel rel void void rel
+void rel void void rel
+rel rel rel void void
+rel void rel void rel void
+
+void è il blocco vuoto, bisogna capire come concatenare questi blocchi vuoti che
+non devono essere allocati.
+
+2)
+  array (gli indici sono gli utenti(nomi o ID)):
+
+                      0-> (rel, utente)-> (rel, utente)
+                      1-> (rel, utente)-> (rel, utente)
+                      2-> (rel, utente)
+                      3-> (rel, utente)-> (rel, utente)
+                      .-> (rel, utente)
+                      .
+                      .
+
+          utente indica l'indice dell'array iniziale

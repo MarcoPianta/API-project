@@ -58,3 +58,27 @@ non devono essere allocati.
                       .
 
           utente indica l'indice dell'array iniziale
+
+
+    Progetto:
+
+alberi per relazioni                                           alberi per entità
+
+alberi per relazioni:
+  ogni nodo delle relazioni contiene un array con elementi che puntano alle
+  entità: una entità (la ricevente), un contatore che dice quante sono le altre
+  entità.
+  °1 Per inserire relazione si fa ricerca binaria sulle entità se entità c'è si
+     incrementa il contatore e se necessario si scambia con entità adiacenti, se
+     non c'è si inserisce alla fine. Si deve aggiungere il puntatore alla
+     relazione nell'albero delle entità.
+  °2 Per eliminare relazione si fa ricerca binaria sulle entità se entità c'è si
+     elimina e diminuisce contatore, se zero si fa free. Si deve eliminare il
+     puntatore alla relazione dall'entità uscente.
+
+alberi per entità:
+  ogni nodo contiene nome entità e albero rosso nero di puntatori a relazioni
+  che la coinvolgono
+  °1 Per inserire si inserisce nell'albero
+  °2 Per eliminare si elimina entità decrementando contatore tutte le relazioni
+     a cui punta nell'albero, si fa free di tutti i puntatori

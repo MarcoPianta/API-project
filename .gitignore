@@ -1,3 +1,6 @@
 #ignore compiled files
 main
 foo
+
+#ignore notes file
+various

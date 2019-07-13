@@ -5,26 +5,25 @@
 //Types definition
 
 /**
-* This struct contains pointer to the entity involved and to the relation name
-*/
-typedef struct relationElem {
-  struct entNode *inEnt; //Entity with incoming relation
-  struct entNode *outEnt; //Entity with outcoming relation
-  struct relNode *relationName; //The pointer to the relation
-} relation;
-
-/**
 * This struct is the node of the tree(BST) used to store relations names in
 * alphabetical order, every node point to another tree containing relations
 */
 typedef struct relationsNode {
-  struct relationsNode *parent;
-  struct relationsNode *left;
-  struct relationsNode *right;
-  struct relationsNode *root;
-  char *value; //The relation name
-  relation *relations; //The array which contains relations
+  struct relationsNode  *parent;
+  struct relationsNode  *left;
+  struct relationsNode  *right;
+  char                  *value; //The relation name
+  relation              *relations; //The array which contains relations
 } relNode;
+
+/**
+* This struct contains pointer to the entity involved and to the relation name
+*/
+typedef struct relationElem {
+  struct entNode  *inEnt; //Entity with incoming relation
+  int             counter; //Entity with outcoming relation
+  struct relNode  *relationName; //The pointer to the relation
+} relation;
 
 /**
 * This struct is the node of the tree(BST) used to store entities in
@@ -34,7 +33,6 @@ typedef struct entitiesNode {
   struct entitiesNode *parent;
   struct entitiesNode *left;
   struct entitiesNode *right;
-  struct entitiesNode *root;
   char *value; //The relation name
 } entNode;
 

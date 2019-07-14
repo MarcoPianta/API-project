@@ -9,32 +9,64 @@
 * alphabetical order, every node point to another tree containing relations
 */
 typedef struct relationsNode {
-  struct relationsNode  *parent;
-  struct relationsNode  *left;
-  struct relationsNode  *right;
-  char                  *value; //The relation name
-  relation              *relations; //The array which contains relations
+  struct relationsNode    *parent;
+  struct relationsNode    *left;
+  struct relationsNode    *right;
+  char                    RB; //This field indicates if the node if red or black, value is 'r' if red, 'b' if black
+  char                    *value; //The relation name
+  relation                *relations; //The tree which contains relations
 } relNode;
 
 /**
-* This struct contains pointer to the entity involved and to the relation name
+* This struct is the node of a subtree containing relations between entities, it
+* contains pointer to the entity involved, a counter to count number of incoming
+* relations, and another tree which contains outcoming entities in alphabetical
+* order. The subtree is contained in relations tree
 */
 typedef struct relationElem {
-  struct entNode  *inEnt; //Entity with incoming relation
-  int             counter; //Entity with outcoming relation
-  struct relNode  *relationName; //The pointer to the relation
+  struct relationElem     *parent;
+  struct relationElem     *left;
+  struct relationElem     *right;
+  char                    RB; //This field indicates if the node if red or black, value is 'r' if red, 'b' if black
+  struct entNode          *inEnt; //Entity with incoming relation
+  int                     counter; //Entity with outcoming relation
+  struct relNode          *relationName; //The pointer to the relation
 } relation;
+
+/**
+* This struct is the node of the tree containing outcoming entities, the tree is
+* in relation tree.
+*/
+typedef struct outcomingElem {
+  struct outcomingElem    *parent;
+  struct outcomingElem    *left;
+  struct outcomingElem    *right;
+  char                    RB; //This field indicates if the node if red or black, value is 'r' if red, 'b' if black
+  struct entNode          *outEnt; //Entity with outcoming relation
+} outElem;
 
 /**
 * This struct is the node of the tree(BST) used to store entities in
 * alphabetical order
 */
 typedef struct entitiesNode {
-  struct entitiesNode *parent;
-  struct entitiesNode *left;
-  struct entitiesNode *right;
-  char *value; //The relation name
+  struct entitiesNode     *parent;
+  struct entitiesNode     *left;
+  struct entitiesNode     *right;
+  char                    RB; //This field indicates if the node if red or black, value is 'r' if red, 'b' if black
+  char                    *value; //The relation name
+  relation                *relations;
 } entNode;
+
+/**
+* This struct is used for the list in entities tree which contains the relations
+* in which the entity is involved.
+*/
+typedef struct reletionsList {
+  struct reletionsList    *prev;
+  struct reletionsList    *next;
+  relation                *rel;
+} relElem;
 
 //End of types definition
 
@@ -72,7 +104,7 @@ int main() {
 }
 
 /**
-* This function initialize the tree conatining relations
+* This function initialize the tree containing relations
 * @param tree the pointer to the root of the tree
 */
 void initializeRelTree(relNode *tree) {

@@ -102,11 +102,122 @@ int main() {
 }
 
 /**
-* This function add an entity to the system
-* @param entity the entity to add
-*/
-void addent(char entity[]){
+ * This function add an entity to the system
+ * @param entity the entity to add
+ * @param root the root of the tree af entity
+ */
+void addent(char entity[], entNode **root){
+    entNode**   x = root;
+    entNode**   y = NULL;
+    entNode     *newEntity = create_ent_node(entity);
 
+    while (*x != NULL) {
+        *y = *x;
+        if (strcmp(newEntity->value, (*x)->value) < 0)
+            *x = (*x)->left;
+        else
+            (*x) = (*x)->right;
+    }
+    newEntity->parent = *y;
+    if (*y == NULL)
+        *root = newEntity;
+    else if (strcmp(newEntity->value, (*y)->value) < 0)
+        (*y)->left = newEntity;
+    else
+        (*y)->right = newEntity;
+    newEntity->left = NULL;
+    newEntity->right = NULL;
+    newEntity->RB = 'r';
+    addent_fixup(root, &newEntity);
+}
+
+/**
+ * This function fix entity rb tree after an insertion
+ * @param root the root of the entity tree
+ * @param z the new node added to the tree
+ */
+void addent_fixup(entNode **root, entNode **z){
+    entNode* y;
+    while ((*z)->RB == 'r'){
+        if ((*z)->parent == (*z)->parent->parent->left){
+            y = (*z)->parent->parent->right;
+            if (y->RB == 'r'){
+                (*z)->parent->RB = 'b';
+                y->RB = 'b';
+                (*z)->parent->parent->RB = 'r';
+                (*z) = (*z)->parent->parent;
+            } else{
+                if ((*z) == (*z)->parent->right) {
+                    (*z) = (*z)->parent;
+                    entity_left_rotate(root, z);
+                }
+                (*z)->parent->RB = 'b';
+                (*z)->parent->parent->RB = 'r';
+                entity_right_rotate(root, z);
+            }
+        } else{
+            y = (*z)->parent->parent->left;
+            if (y->RB == 'r'){
+                (*z)->parent->RB = 'b';
+                y->RB = 'b';
+                (*z)->parent->parent->RB = 'r';
+                (*z) = (*z)->parent->parent;
+            } else{
+                if ((*z) == (*z)->parent->left) {
+                    (*z) = (*z)->parent;
+                    entity_right_rotate(root, z);
+                }
+                (*z)->parent->RB = 'b';
+                (*z)->parent->parent->RB = 'r';
+                entity_left_rotate(root, z);
+            }
+        }
+    }
+    (*root)->RB = 'b';
+}
+
+/**
+ * This function made a left rotation of the node specified in the entity tree
+ * @param root the entity tree root
+ * @param x the node to be rotated
+ */
+void entity_left_rotate(entNode **root, entNode **x){
+    entNode **y;
+    *y = (*x)->right;
+    (*x)->right = (*y)->left;
+    if ((*y)->left != NULL)
+        (*y)->left->parent = *x;
+    (*y)->parent = (*x)->parent;
+    if ((*x)->parent == NULL)
+        *root = *y;
+    else if (*x == (*x)->parent->left)
+        (*x)->parent->left = *y;
+    else
+        (*x)->parent->right = *y;
+    (*y)->left = x;
+    (*x)->parent = *y;
+}
+
+/**
+ * This function made a right rotation of the node specified in the entity tree
+ * @param root the entity tree root
+ * @param x the node to be rotated
+ */
+void entity_right_rotate(entNode **root, entNode **x){
+    entNode **y;
+    *y = (*x)->left;
+    (*x)->left = (*y)->right;
+    if ((*y)->right != NULL)
+        (*y)->right->parent = *x;
+    (*y)->parent = (*x)->parent;
+    if ((*x)->parent == NULL)
+        *root = *y;
+    else if (*x == (*x)->parent->right)
+        (*x)->parent->right = *y;
+    else
+        (*x)->parent->left = *y;
+    (*y)->right = x;
+    (*x)->parent = *y;
 }
 
 /**
@@ -114,8 +225,14 @@ void addent(char entity[]){
 * @param name the entity name
 * @return an entNode struct with unitialized values
 */
-entNode create_ent_node(){
-
+entNode *create_ent_node(char *name){
+    entNode *newNode = malloc(sizeof(entNode));
+    newNode -> value     = name;
+    newNode -> RB        = 'r';
+    newNode -> parent    = NULL;
+    newNode -> right     = NULL;
+    newNode -> left      = NULL;
+    newNode -> relations = NULL;
 }
 
 /**
@@ -123,7 +240,7 @@ entNode create_ent_node(){
 * @param name the relation name
 * @return a relNode struct with unitialized values
 */
-relNode create_rel_node(char *name){
+relNode *create_rel_node(char *name){
     relNode *newNode = malloc(sizeof(relNode));
     newNode -> value     = name;
     newNode -> RB        = 'r';
@@ -138,7 +255,7 @@ relNode create_rel_node(char *name){
 * @param name the relation name
 * @return a relNode struct with unitialized values
 */
-relation create_relation(entNode *incomingEnt, entNode){
+relation *create_relation(entNode *incomingEnt, entNode){
     relation *newNode = malloc(sizeof(relation));
     newNode -> parent    = NULL;
     newNode -> left      = NULL;

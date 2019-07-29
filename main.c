@@ -4,33 +4,19 @@
 
 //Types definition
 
-/**
-* This struct is the node of the tree(BST) used to store relations names in
-* alphabetical order, every node point to another tree containing relations
-*/
-typedef struct relationsNode {
-    struct relationsNode    *parent;
-    struct relationsNode    *left;
-    struct relationsNode    *right;
-    char                    RB; //This field indicates if the node if red or black, value is 'r' if red, 'b' if black
-    char                    *value; //The relation name
-    relation                *relations; //The tree which contains relations
-} relNode;
+typedef struct relation relation;
 
 /**
-* This struct is the node of a subtree containing relations between entities, it contains pointer to the entity
-* involved, a counter to count number of incoming relations, and another tree which contains outcoming entities in
-* alphabetical order. The subtree is contained in relations tree
+* This struct is the node of the tree(BST) used to store entities in alphabetical order
 */
-typedef struct relationElem {
-    struct relationElem     *parent;
-    struct relationElem     *left;
-    struct relationElem     *right;
-    char                    RB; //This field indicates if the node is red or black, value is 'r' if red, 'b' if black
-    struct entNode          *inEnt; //Entity with incoming relation
-    int                     counter; //Entity with outcoming relation
-    struct outElem          *outelems; //The pointer to the relation
-} relation;
+typedef struct entitiesNode {
+    struct entitiesNode     *parent;
+    struct entitiesNode     *left;
+    struct entitiesNode     *right;
+    char                    RB; //This field indicates if the node if red or black, value is 'r' if red, 'b' if black
+    char                    *value; //The relation name
+    relation                *relations;
+} entNode;
 
 /**
 * This struct is the node of the tree containing outcoming entities, the tree is in relation tree.
@@ -44,16 +30,32 @@ typedef struct outcomingElem {
 } outElem;
 
 /**
-* This struct is the node of the tree(BST) used to store entities in alphabetical order
+* This struct is the node of a subtree containing relations between entities, it contains pointer to the entity
+* involved, a counter to count number of incoming relations, and another tree which contains outcoming entities in
+* alphabetical order. The subtree is contained in relations tree
 */
-typedef struct entitiesNode {
-    struct entitiesNode     *parent;
-    struct entitiesNode     *left;
-    struct entitiesNode     *right;
+struct relation {
+    struct relation         *parent;
+    struct relation         *left;
+    struct relation         *right;
+    char                    RB; //This field indicates if the node is red or black, value is 'r' if red, 'b' if black
+    entNode                 *inEnt; //Entity with incoming relation
+    int                     counter; //Entity with outcoming relation
+    outElem                 *outelems; //The pointer to the relation
+};
+
+/**
+* This struct is the node of the tree(BST) used to store relations names in
+* alphabetical order, every node point to another tree containing relations
+*/
+typedef struct relationsNode {
+    struct relationsNode    *parent;
+    struct relationsNode    *left;
+    struct relationsNode    *right;
     char                    RB; //This field indicates if the node if red or black, value is 'r' if red, 'b' if black
     char                    *value; //The relation name
-    relation                *relations;
-} entNode;
+    relation                *relations; //The tree which contains relations
+} relNode;
 
 /**
 * This struct is used for the list in entities tree which contains the relations in which the entity is involved.
@@ -80,14 +82,13 @@ int main() {
     //End of variables declaration
 
     //Functions' prototype
-    void addent(char entity[]);
-    relNode create_rel_node();
+    void addent(char entity[], entNode **root);
     //End of functions' prototype
 
     while (scanf("%s", command)) {
         if (0 == strcmp(command, "addent")) {
             scanf("%s", line);
-            addent(line);
+            addent(line, &treeEntityRoot);
         } else if (0 == strcmp(command, "delent")) {
             //TODO call delent function
         } else if (0 == strcmp(command, "addrel")) {
@@ -102,33 +103,62 @@ int main() {
 }
 
 /**
- * This function add an entity to the system
- * @param entity the entity to add
- * @param root the root of the tree af entity
- */
-void addent(char entity[], entNode **root){
-    entNode**   x = root;
-    entNode**   y = NULL;
-    entNode     *newEntity = create_ent_node(entity);
+* This function create an entNode with name values specified as parameter
+* @param name the entity name
+* @return an entNode struct with unitialized values
+*/
+entNode *create_ent_node(char *name){
+    entNode *newNode = malloc(sizeof(entNode));
+    newNode -> value     = name;
+    newNode -> RB        = 'r';
+    newNode -> parent    = NULL;
+    newNode -> right     = NULL;
+    newNode -> left      = NULL;
+    newNode -> relations = NULL;
+}
 
-    while (*x != NULL) {
-        *y = *x;
-        if (strcmp(newEntity->value, (*x)->value) < 0)
-            *x = (*x)->left;
-        else
-            (*x) = (*x)->right;
-    }
-    newEntity->parent = *y;
-    if (*y == NULL)
-        *root = newEntity;
-    else if (strcmp(newEntity->value, (*y)->value) < 0)
-        (*y)->left = newEntity;
+/**
+ * This function made a left rotation of the node specified in the entity tree
+ * @param root the entity tree root
+ * @param x the node to be rotated
+ */
+void entity_left_rotate(entNode **root, entNode **x){
+    entNode **y;
+    *y = (*x)->right;
+    (*x)->right = (*y)->left;
+    if ((*y)->left != NULL)
+        (*y)->left->parent = *x;
+    (*y)->parent = (*x)->parent;
+    if ((*x)->parent == NULL)
+        *root = *y;
+    else if (*x == (*x)->parent->left)
+        (*x)->parent->left = *y;
     else
-        (*y)->right = newEntity;
-    newEntity->left = NULL;
-    newEntity->right = NULL;
-    newEntity->RB = 'r';
-    addent_fixup(root, &newEntity);
+        (*x)->parent->right = *y;
+    (*y)->left = *x;
+    (*x)->parent = *y;
+}
+
+/**
+ * This function made a right rotation of the node specified in the entity tree
+ * @param root the entity tree root
+ * @param x the node to be rotated
+ */
+void entity_right_rotate(entNode **root, entNode **x){
+    entNode **y;
+    *y = (*x)->left;
+    (*x)->left = (*y)->right;
+    if ((*y)->right != NULL)
+        (*y)->right->parent = *x;
+    (*y)->parent = (*x)->parent;
+    if ((*x)->parent == NULL)
+        *root = *y;
+    else if (*x == (*x)->parent->right)
+        (*x)->parent->right = *y;
+    else
+        (*x)->parent->left = *y;
+    (*y)->right = *x;
+    (*x)->parent = *y;
 }
 
 /**
@@ -177,62 +207,33 @@ void addent_fixup(entNode **root, entNode **z){
 }
 
 /**
- * This function made a left rotation of the node specified in the entity tree
- * @param root the entity tree root
- * @param x the node to be rotated
+ * This function add an entity to the system
+ * @param entity the entity to add
+ * @param root the root of the tree af entity
  */
-void entity_left_rotate(entNode **root, entNode **x){
-    entNode **y;
-    *y = (*x)->right;
-    (*x)->right = (*y)->left;
-    if ((*y)->left != NULL)
-        (*y)->left->parent = *x;
-    (*y)->parent = (*x)->parent;
-    if ((*x)->parent == NULL)
-        *root = *y;
-    else if (*x == (*x)->parent->left)
-        (*x)->parent->left = *y;
-    else
-        (*x)->parent->right = *y;
-    (*y)->left = x;
-    (*x)->parent = *y;
-}
+void addent(char entity[], entNode **root){
+    entNode**   x = root;
+    entNode**   y = NULL;
+    entNode     *newEntity = create_ent_node(entity);
 
-/**
- * This function made a right rotation of the node specified in the entity tree
- * @param root the entity tree root
- * @param x the node to be rotated
- */
-void entity_right_rotate(entNode **root, entNode **x){
-    entNode **y;
-    *y = (*x)->left;
-    (*x)->left = (*y)->right;
-    if ((*y)->right != NULL)
-        (*y)->right->parent = *x;
-    (*y)->parent = (*x)->parent;
-    if ((*x)->parent == NULL)
-        *root = *y;
-    else if (*x == (*x)->parent->right)
-        (*x)->parent->right = *y;
+    while (*x != NULL) {
+        *y = *x;
+        if (strcmp(newEntity->value, (*x)->value) < 0)
+            *x = (*x)->left;
+        else
+            (*x) = (*x)->right;
+    }
+    newEntity->parent = *y;
+    if (*y == NULL)
+        *root = newEntity;
+    else if (strcmp(newEntity->value, (*y)->value) < 0)
+        (*y)->left = newEntity;
     else
-        (*x)->parent->left = *y;
-    (*y)->right = x;
-    (*x)->parent = *y;
-}
-
-/**
-* This function create an entNode with name values specified as parameter
-* @param name the entity name
-* @return an entNode struct with unitialized values
-*/
-entNode *create_ent_node(char *name){
-    entNode *newNode = malloc(sizeof(entNode));
-    newNode -> value     = name;
-    newNode -> RB        = 'r';
-    newNode -> parent    = NULL;
-    newNode -> right     = NULL;
-    newNode -> left      = NULL;
-    newNode -> relations = NULL;
+        (*y)->right = newEntity;
+    newEntity->left = NULL;
+    newEntity->right = NULL;
+    newEntity->RB = 'r';
+    addent_fixup(root, &newEntity);
 }
 
 /**
@@ -255,7 +256,7 @@ relNode *create_rel_node(char *name){
 * @param name the relation name
 * @return a relNode struct with unitialized values
 */
-relation *create_relation(entNode *incomingEnt, entNode){
+relation *create_relation(entNode *incomingEnt, entNode entity){
     relation *newNode = malloc(sizeof(relation));
     newNode -> parent    = NULL;
     newNode -> left      = NULL;

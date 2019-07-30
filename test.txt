@@ -1,0 +1,12 @@
+addent "Elijah_Baley"
+addent "Bentley_Baley"
+addent "Jesse_Baley"
+addent "Gladia_Delmarre"
+addent "Han_Fastolfe"
+addent "Vasilia_Aliena"
+addent "R_Daneel_Olivaw"
+addent "R_Giskard_Reventlov"
+addent "Kelden_Amadiro"
+addent "Santirix_Gremionis"
+addent "Rikaine_Delmarre"
+exit

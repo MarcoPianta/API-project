@@ -79,16 +79,21 @@ entNode         *treeEntityNil;
 //End of global variables declaration
 
 /**
-* The main read a string of character from stdin and call the appropriate function
-*/
-int main() {
-    //Initialization
+ * This function initialize all the global variables values
+ */
+void initialization(){
     treeEntityNil = malloc(sizeof(entNode));
     treeEntityNil->parent = treeEntityNil;
     treeEntityNil->left = treeEntityNil;
     treeEntityNil->right = treeEntityNil;
     treeEntityNil->RB = 'b';
-    //End of initialization
+}
+
+/**
+* The main read a string of character from stdin and call the appropriate function
+*/
+int main() {
+    initialization();
     //Variables declaration
     char            command[6]; //This array contains the command read from stdin
     char            *entityName;
@@ -107,9 +112,9 @@ int main() {
     while (scanf("%s", command)) {
         if (0 == strcmp(command, "addent")) {
             scanf("%ms", &entityName);
-            printf("initial global root value: %s\n", treeEntityRoot->value );
             addent(entityName, &treeEntityRoot);
-            printf("global root value: %s\n\n", treeEntityRoot->value );
+            command[0] = 'm';
+            entityName = NULL;
         } else if (0 == strcmp(command, "delent")) {
             //TODO call delent function
         } else if (0 == strcmp(command, "addrel")) {
@@ -145,21 +150,20 @@ entNode *create_ent_node(char *name){
  * @param root the entity tree root
  * @param x the node to be rotated
  */
-void entity_left_rotate(entNode **root, entNode **x){
-    entNode **y;
-    y = &((*x)->right);
-    (*x)->right = (*y)->left;
-    if ((*y)->left != treeEntityNil)
-        (*y)->left->parent = *x;
-    (*y)->parent = (*x)->parent;
-    if ((*x)->parent == treeEntityNil)
-        *root = *y;
-    else if (*x == (*x)->parent->left)
-        (*x)->parent->left = *y;
+void entity_left_rotate(entNode **root, entNode *x){
+    entNode *y = x->right;
+    x->right = y->left;
+    if (y->left != treeEntityNil)
+        y->left->parent = x;
+    y->parent = x->parent;
+    if (x->parent == treeEntityNil)
+        (*root) = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;
     else
-        (*x)->parent->right = *y;
-    (*y)->left = *x;
-    (*x)->parent = *y;
+        x->parent->right = y;
+    y->left = x;
+    x->parent = y;
 }
 
 /**
@@ -167,21 +171,20 @@ void entity_left_rotate(entNode **root, entNode **x){
  * @param root the entity tree root
  * @param x the node to be rotated
  */
-void entity_right_rotate(entNode **root, entNode **x){
-    entNode **y;
-    y = &((*x)->left);
-    (*x)->left = (*y)->right;
-    if ((*y)->right != treeEntityNil)
-        (*y)->right->parent = *x;
-    (*y)->parent = (*x)->parent;
-    if ((*x)->parent == treeEntityNil)
-        *root = *y;
-    else if (*x == (*x)->parent->right)
-        (*x)->parent->right = *y;
+void entity_right_rotate(entNode **root, entNode *x){
+    entNode *y = x->left;
+    x->left = y->right;
+    if (y->right != treeEntityNil)
+        y->right->parent = x;
+    y->parent = x->parent;
+    if (y->parent == treeEntityNil)
+        *root = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;
     else
-        (*x)->parent->left = *y;
-    (*y)->right = *x;
-    (*x)->parent = *y;
+        x->parent->right = y;
+    y->right = x;
+    x->parent = y;
 }
 
 /**
@@ -189,40 +192,40 @@ void entity_right_rotate(entNode **root, entNode **x){
  * @param root the root of the entity tree
  * @param z the new node added to the tree
  */
-void addent_fixup(entNode **root, entNode **z){
+void addent_fixup(entNode **root, entNode *z){
     entNode* y;
-    while ((*z)->parent->RB == 'r'){
-        if ((*z)->parent == (*z)->parent->parent->left){
-            y = (*z)->parent->parent->right;
+    while (z->parent->RB == 'r'){
+        if (z->parent == z->parent->parent->left){
+            y = z->parent->parent->right;
             if (y->RB == 'r'){
-                (*z)->parent->RB = 'b';
+                z->parent->RB = 'b';
                 y->RB = 'b';
-                (*z)->parent->parent->RB = 'r';
-                (*z) = (*z)->parent->parent;
+                z->parent->parent->RB = 'r';
+                z = z->parent->parent;
             } else{
-                if ((*z) == (*z)->parent->right) {
-                    (*z) = (*z)->parent;
+                if (z == z->parent->right) {
+                    z = z->parent;
                     entity_left_rotate(root, z);
                 }
-                (*z)->parent->RB = 'b';
-                (*z)->parent->parent->RB = 'r';
-                entity_right_rotate(root, z);
+                z->parent->RB = 'b';
+                z->parent->parent->RB = 'r';
+                entity_right_rotate(root, z->parent->parent);
             }
         } else{
-            y = (*z)->parent->parent->left;
+            y = z->parent->parent->left;
             if (y->RB == 'r'){
-                (*z)->parent->RB = 'b';
+                z->parent->RB = 'b';
                 y->RB = 'b';
-                (*z)->parent->parent->RB = 'r';
-                (*z) = (*z)->parent->parent;
+                z->parent->parent->RB = 'r';
+                z = z->parent->parent;
             } else{
-                if ((*z) == (*z)->parent->left) {
-                    (*z) = (*z)->parent;
+                if (z == z->parent->left) {
+                    z = z->parent;
                     entity_right_rotate(root, z);
                 }
-                (*z)->parent->RB = 'b';
-                (*z)->parent->parent->RB = 'r';
-                entity_left_rotate(root, z);
+                z->parent->RB = 'b';
+                z->parent->parent->RB = 'r';
+                entity_left_rotate(root, z->parent->parent);
             }
         }
     }
@@ -239,7 +242,6 @@ void addent(char entity[], entNode **root){
     entNode*    y = treeEntityNil;
     entNode     *newEntity = create_ent_node(entity);
 
-    printf("before while root: %s\n", (*root)->value );
     while (x != treeEntityNil) {
         y = x;
         if (strcmp(newEntity->value, x->value) < 0)
@@ -249,9 +251,7 @@ void addent(char entity[], entNode **root){
     }
     newEntity->parent = y;
     if (y == treeEntityNil) {
-        printf("adding root: %s \t\t\t current root: %s\n", newEntity->value, (*root)->value );
         *root = newEntity;
-        printf("added value: %s\n", (*root)->value );
     }
     else if (strcmp(newEntity->value, y->value) < 0)
         y->left = newEntity;
@@ -260,10 +260,13 @@ void addent(char entity[], entNode **root){
     newEntity->left = treeEntityNil;
     newEntity->right = treeEntityNil;
     newEntity->RB = 'r';
-    addent_fixup(root, &newEntity);
-    printf("root value: %s\n", (*root)->value );
+    addent_fixup(root, newEntity);
 }
 
+/**
+ * This function is used to print tree values in alphabetical order
+ * @param x the root of the tree
+ */
 void inorder_entity_tree_walk(entNode *x){
     if (x != treeEntityNil){
         inorder_entity_tree_walk(x->left);

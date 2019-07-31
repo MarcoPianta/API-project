@@ -4,6 +4,7 @@ foo
 
 #ignore notes file
 various
+foo.c
 
 #ignore clion files
 .idea/

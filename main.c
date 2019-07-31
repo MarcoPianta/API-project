@@ -77,6 +77,7 @@ typedef struct reletionsList {
 entNode         *treeEntityNil;
 relNode         *treeRelationNil;
 
+
 //End of global variables declaration
 
 /**
@@ -107,6 +108,7 @@ int main() {
     char            command[6]; //This array contains the command read from stdin
     char            *entityName; //This variable contains the entity name read from stdin (used for addent and first entity of addrel and delrel)
     char            *entityDestName; //This variable contains the entity name read from stdin (used for id_dest entity in addrel and delrel)
+    char            *relationName;
 
     entNode         *treeEntityRoot = treeEntityNil; //The root of the entities tree
     relNode         *treeRelationRoot = treeRelationNil; //The root of the relations tree
@@ -126,6 +128,7 @@ int main() {
         } else if (0 == strcmp(command, "addrel")) {
             scanf("%ms", &entityName);
             scanf("%ms", &entityDestName);
+            scanf("%ms", &relationName);
             //TODO call addrel function
         } else if (0 == strcmp(command, "delrel")) {
             //TODO call delrel function
@@ -244,24 +247,25 @@ void addent_fixup(entNode **root, entNode *z){
 }
 
 /**
- * This function add an entity to the system
+ * This function add an entity to the system, if the entity is already in the system it does nothing
  * @param entity the entity to add
- * @param root the root of the tree af entity
+ * @param root the root of the tree of entity
  */
 void addent(char entity[], entNode **root){
     entNode*    x = *root;
     entNode*    y = treeEntityNil;
-    entNode     *newEntity = create_ent_node(entity);
+    entNode     *newEntity;
 
     while (x != treeEntityNil) {
         y = x;
-        if(strcmp(newEntity->value, x->value) == 0)
+        if(strcmp(entity, x->value) == 0)
             return;
-        else if (strcmp(newEntity->value, x->value) < 0)
+        else if (strcmp(entity, x->value) < 0)
             x = x->left;
         else
             x = x->right;
     }
+    newEntity = create_ent_node(entity);
     newEntity->parent = y;
     if (y == treeEntityNil) {
         *root = newEntity;
@@ -292,7 +296,47 @@ void inorder_entity_tree_walk(entNode *x){
 }
 //------------------------------ End functions for addent ------------------------------
 
+//------------------------------ Functions for entity tree ------------------------------
+/**
+ * This function search in the entity tree for the value specified as parameter
+ * @param root the entity tree root
+ * @param name the value to search for
+ * @return the node which contain the value or treeEntityNil if the value is not in the tree
+ */
+entNode* search_entity(entNode *root, char name[]){
+    entNode *x = root;
+    int stringCmp;
+    while ((x != treeEntityNil)){
+        stringCmp = strcmp(name, x->value);
+        if (stringCmp != 0) {
+            if (stringCmp < 0)
+                x = x->left;
+            else
+                x = x->right;
+        } else break;
+    }
+    return x;
+}
+//------------------------------ End functions for entity tree ------------------------------
+
+
 //------------------------------ Functions for addrel ------------------------------
+/**
+* This function create a relation node with values specified for the relation subtree
+* @param name the relation name
+* @return a relNode struct with unitialized values
+*/
+relation *create_relation(entNode *incomingEnt, entNode entity){
+    relation *newNode = malloc(sizeof(relation));
+    newNode -> parent    = NULL;
+    newNode -> left      = NULL;
+    newNode -> right     = NULL;
+    newNode -> RB        = 'r'; //This field indicates if the node is red or black, value is 'r' if red, 'b' if black
+    newNode -> inEnt     = incomingEnt; //Entity with incoming relation
+    newNode -> counter   = 1; //Entity with outcoming relation
+    newNode -> outelems; //The pointer to the relation
+}
+
 /**
 * This function create a relNode with name value specified for the relation tree
 * @param name the relation name
@@ -309,18 +353,129 @@ relNode *create_rel_node(char *name){
 }
 
 /**
-* This function create a relation node with values specified for the relation subtree
-* @param name the relation name
-* @return a relNode struct with unitialized values
-*/
-relation *create_relation(entNode *incomingEnt, entNode entity){
-    relation *newNode = malloc(sizeof(relation));
-    newNode -> parent    = NULL;
-    newNode -> left      = NULL;
-    newNode -> right     = NULL;
-    newNode -> RB        = 'r'; //This field indicates if the node is red or black, value is 'r' if red, 'b' if black
-    newNode -> inEnt     = incomingEnt; //Entity with incoming relation
-    newNode -> counter; //Entity with outcoming relation
-    newNode -> outelems; //The pointer to the relation
+ * This function made a left rotation of the node specified in the relation tree
+ * @param root the relation tree root
+ * @param x the node to be rotated
+ */
+void relation_left_rotate(relNode **root, relNode *x){
+    relNode *y = x->right;
+    x->right = y->left;
+    if (y->left != treeRelationNil)
+        y->left->parent = x;
+    y->parent = x->parent;
+    if (x->parent == treeRelationNil)
+        (*root) = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;
+    else
+        x->parent->right = y;
+    y->left = x;
+    x->parent = y;
+}
+
+/**
+ * This function made a right rotation of the node specified in the relation tree
+ * @param root the relation tree root
+ * @param x the node to be rotated
+ */
+void relation_right_rotate(relNode **root, relNode *x){
+    relNode *y = x->left;
+    x->left = y->right;
+    if (y->right != treeRelationNil)
+        y->right->parent = x;
+    y->parent = x->parent;
+    if (y->parent == treeRelationNil)
+        *root = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;
+    else
+        x->parent->right = y;
+    y->right = x;
+    x->parent = y;
+}
+
+/**
+ * This function fix relation rb tree after an insertion
+ * @param root the root of the relation tree
+ * @param z the new node added to the tree
+ */
+void addrel_fixup(relNode **root, relNode *z){
+    relNode* y;
+    while (z->parent->RB == 'r'){
+        if (z->parent == z->parent->parent->left){
+            y = z->parent->parent->right;
+            if (y->RB == 'r'){
+                z->parent->RB = 'b';
+                y->RB = 'b';
+                z->parent->parent->RB = 'r';
+                z = z->parent->parent;
+            } else{
+                if (z == z->parent->right) {
+                    z = z->parent;
+                    relation_left_rotate(root, z);
+                }
+                z->parent->RB = 'b';
+                z->parent->parent->RB = 'r';
+                relation_right_rotate(root, z->parent->parent);
+            }
+        } else{
+            y = z->parent->parent->left;
+            if (y->RB == 'r'){
+                z->parent->RB = 'b';
+                y->RB = 'b';
+                z->parent->parent->RB = 'r';
+                z = z->parent->parent;
+            } else{
+                if (z == z->parent->left) {
+                    z = z->parent;
+                    relation_right_rotate(root, z);
+                }
+                z->parent->RB = 'b';
+                z->parent->parent->RB = 'r';
+                relation_left_rotate(root, z->parent->parent);
+            }
+        }
+    }
+    (*root)->RB = 'b';
+}
+
+/**
+ * This function add a relation to the system, if the relation is already in the system it updates the values of exiting
+ * relation
+ * @param relation the relation to add/update
+ * @param root the root of the tree of relation
+ */
+void addrel(char relation[], relNode **root){
+    relNode*    x = *root;
+    relNode*    y = treeRelationNil;
+    relNode     *newEntity;
+
+    while (x != treeRelationNil) {
+        y = x;
+        if(strcmp(relation, x->value) == 0) {
+            //TODO update value in existing relation;
+            return;
+        }
+        else if (strcmp(relation, x->value) < 0)
+            x = x->left;
+        else
+            x = x->right;
+    }
+    newEntity = create_rel_node(relation);
+    newEntity->parent = y;
+    if (y == treeRelationNil) {
+        *root = newEntity;
+    }
+    else if (strcmp(newEntity->value, y->value) < 0)
+        y->left = newEntity;
+    else
+        y->right = newEntity;
+    newEntity->left = treeRelationNil;
+    newEntity->right = treeRelationNil;
+    newEntity->RB = 'r';
+    //printf("Added relation: %s\n", newEntity->value);
+    //printf("Before fixup \nparent: %s\t\tleft: %s\t\tright: %s\n", newEntity->parent->value, newEntity->left->value, newEntity->right->value);
+    addrel_fixup(root, newEntity);
+    //printf("After fixup \nparent: %s\t\tleft: %s\t\tright: %s\n\n", newEntity->parent->value, newEntity->left->value, newEntity->right->value);
 }
 //------------------------------ End functions for addrel ------------------------------

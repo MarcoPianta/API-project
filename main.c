@@ -71,10 +71,11 @@ typedef struct reletionsList {
 //Global variables declaration
 
 /**
- * Variable used as NIL value for entity tree, declared global since is accessed from multiple functions but is never
+ * Variables used as NIL value for trees, declared global since are accessed from multiple functions but are never
  * modified
  */
 entNode         *treeEntityNil;
+relNode         *treeRelationNil;
 
 //End of global variables declaration
 
@@ -82,11 +83,19 @@ entNode         *treeEntityNil;
  * This function initialize all the global variables values
  */
 void initialization(){
+    //Entity tree initialization
     treeEntityNil = malloc(sizeof(entNode));
     treeEntityNil->parent = treeEntityNil;
     treeEntityNil->left = treeEntityNil;
     treeEntityNil->right = treeEntityNil;
     treeEntityNil->RB = 'b';
+
+    //Relation tree initialization
+    treeRelationNil = malloc(sizeof(relNode));
+    treeRelationNil->parent = treeRelationNil;
+    treeRelationNil->left = treeRelationNil;
+    treeRelationNil->right = treeRelationNil;
+    treeRelationNil->RB = 'b';
 }
 
 /**
@@ -96,12 +105,11 @@ int main() {
     initialization();
     //Variables declaration
     char            command[6]; //This array contains the command read from stdin
-    char            *entityName;
-    char            line[1024]; //This array contains values after the command read from stdin
+    char            *entityName; //This variable contains the entity name read from stdin (used for addent and first entity of addrel and delrel)
+    char            *entityDestName; //This variable contains the entity name read from stdin (used for id_dest entity in addrel and delrel)
 
     entNode         *treeEntityRoot = treeEntityNil; //The root of the entities tree
-
-    relNode         *treeRelationRoot = NULL; //The root of the relations tree
+    relNode         *treeRelationRoot = treeRelationNil; //The root of the relations tree
     //End of variables declaration
 
     //Functions' prototype
@@ -113,11 +121,11 @@ int main() {
         if (0 == strcmp(command, "addent")) {
             scanf("%ms", &entityName);
             addent(entityName, &treeEntityRoot);
-            command[0] = 'm';
-            entityName = NULL;
         } else if (0 == strcmp(command, "delent")) {
             //TODO call delent function
         } else if (0 == strcmp(command, "addrel")) {
+            scanf("%ms", &entityName);
+            scanf("%ms", &entityDestName);
             //TODO call addrel function
         } else if (0 == strcmp(command, "delrel")) {
             //TODO call delrel function
@@ -127,13 +135,16 @@ int main() {
             inorder_entity_tree_walk(treeEntityRoot);
             return 0;
         }
+        command[0] = 'm'; entityName = NULL; entityDestName = NULL; //Change variables to set invalid values
     }
+    return 0;
 }
 
+//------------------------------ Functions for addent ------------------------------
 /**
 * This function create an entNode with name values specified as parameter
 * @param name the entity name
-* @return an entNode struct with unitialized values
+* @return an entNode struct with name value and pointer referencing NIL
 */
 entNode *create_ent_node(char *name){
     entNode *newNode = malloc(sizeof(entNode));
@@ -244,7 +255,9 @@ void addent(char entity[], entNode **root){
 
     while (x != treeEntityNil) {
         y = x;
-        if (strcmp(newEntity->value, x->value) < 0)
+        if(strcmp(newEntity->value, x->value) == 0)
+            return;
+        else if (strcmp(newEntity->value, x->value) < 0)
             x = x->left;
         else
             x = x->right;
@@ -260,7 +273,10 @@ void addent(char entity[], entNode **root){
     newEntity->left = treeEntityNil;
     newEntity->right = treeEntityNil;
     newEntity->RB = 'r';
+    //printf("Added entity: %s\n", newEntity->value);
+    //printf("Before fixup \nparent: %s\t\tleft: %s\t\tright: %s\n", newEntity->parent->value, newEntity->left->value, newEntity->right->value);
     addent_fixup(root, newEntity);
+    //printf("After fixup \nparent: %s\t\tleft: %s\t\tright: %s\n\n", newEntity->parent->value, newEntity->left->value, newEntity->right->value);
 }
 
 /**
@@ -274,19 +290,21 @@ void inorder_entity_tree_walk(entNode *x){
         inorder_entity_tree_walk(x->right);
     }
 }
+//------------------------------ End functions for addent ------------------------------
 
+//------------------------------ Functions for addrel ------------------------------
 /**
 * This function create a relNode with name value specified for the relation tree
 * @param name the relation name
-* @return a relNode struct with unitialized values
+* @return a relNode struct with name value and pointer referencing NIL
 */
 relNode *create_rel_node(char *name){
     relNode *newNode = malloc(sizeof(relNode));
     newNode -> value     = name;
     newNode -> RB        = 'r';
-    newNode -> parent    = NULL;
-    newNode -> right     = NULL;
-    newNode -> left      = NULL;
+    newNode -> parent    = treeRelationNil;
+    newNode -> right     = treeRelationNil;
+    newNode -> left      = treeRelationNil;
     newNode -> relations = NULL;
 }
 
@@ -305,3 +323,4 @@ relation *create_relation(entNode *incomingEnt, entNode entity){
     newNode -> counter; //Entity with outcoming relation
     newNode -> outelems; //The pointer to the relation
 }
+//------------------------------ End functions for addrel ------------------------------

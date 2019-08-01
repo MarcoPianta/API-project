@@ -9,4 +9,5 @@ addent "R_Giskard_Reventlov"
 addent "Kelden_Amadiro"
 addent "Santirix_Gremionis"
 addent "Rikaine_Delmarre"
+addrel "Ciao" "Bo" "Bella"
 exit

@@ -538,6 +538,7 @@ relation *create_relation(char *incomingEnt, char *outEnt, entNode* root){
         free(newNode);
         return NULL;
     }
+    newNode->outelems->RB = 'b';
 
     elemRelList *newElem = malloc(sizeof(elemRelList));
     newElem -> next = newNode -> inEnt -> relations;
@@ -580,7 +581,7 @@ relation *update_relation(relation* rel, char *outEntity, entNode *entRoot){
             }
         }
         if(currRel->prev != NULL) {
-            while (strcmp(currRel->inEnt->value, currRel->prev->inEnt->value) > 0) {
+            while (strcmp(currRel->inEnt->value, currRel->prev->inEnt->value) < 0) {
                 currRel = currRel->prev;
                 if (currRel->prev == NULL) break;
             }

@@ -558,10 +558,29 @@ relation *create_relation(char *incomingEnt, char *outEnt, entNode* root){
  * @param newEntity the entity to add
  * @param listEnd the end of the list of relation
  */
-void addrelation(relation* newEntity, relation *listEnd){
+relation* addrelation(relation* newEntity, relation *listEnd){
     newEntity -> next = listEnd -> next;
     listEnd -> next = newEntity;
     newEntity -> prev = listEnd;
+
+    /*relation *currRel = newEntity;
+    if(currRel->prev != NULL) {
+        while ((strcmp(newEntity->inEnt->value, currRel->prev->inEnt->value) < 0) && (currRel->counter <= currRel->prev->counter)) {
+            currRel = currRel->prev;
+            if (currRel->prev == NULL) break;
+        }
+    }
+    if(currRel != newEntity){
+        newEntity->prev->next = newEntity->next;
+        if (newEntity->next != NULL) newEntity->next->prev = newEntity->prev;
+        newEntity->prev = currRel->prev;
+        if (currRel->prev != NULL) currRel->prev->next = newEntity;
+        currRel->prev = newEntity;
+        newEntity->next = currRel;
+    }
+    if(newEntity->prev == NULL) //newEntity is now the head of the list
+        return newEntity;*/
+    return NULL;
 }
 
 /**
@@ -581,7 +600,7 @@ relation *update_relation(relation* rel, char *outEntity, entNode *entRoot){
             }
         }
         if(currRel->prev != NULL) {
-            while (strcmp(currRel->inEnt->value, currRel->prev->inEnt->value) < 0) {
+            while ((strcmp(rel->inEnt->value, currRel->prev->inEnt->value) < 0) && (currRel->counter <= currRel->prev->counter)) {
                 currRel = currRel->prev;
                 if (currRel->prev == NULL) break;
             }
@@ -740,7 +759,8 @@ void addrel_ref(relRef **root, char *inEnt, char *outEnt, entNode *entRoot, relN
     if (newRel == NULL)
         return;
 
-    addrelation(newRel, rel->relationsByCounterEnd);
+    relation *newHead = addrelation(newRel, rel->relationsByCounterEnd);
+    if (newHead != NULL) rel->relationsByCounterHead = newHead;
     newEntity = create_relRef(newRel);
     newEntity->parent = y;
     if (y == treeRelRefNil) {
@@ -928,7 +948,7 @@ void report(relNode *x){
             current = current->next;
         else break;
     }
-    printf("%d; ", x->relationsByCounterHead->counter);
+    printf("%d;", x->relationsByCounterHead->counter);
 }
 
 /**

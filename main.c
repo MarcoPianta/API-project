@@ -236,7 +236,7 @@ void entity_right_rotate(entNode **root, entNode *x){
     if (y->right != treeEntityNil)
         y->right->parent = x;
     y->parent = x->parent;
-    if (y->parent == treeEntityNil)
+    if (x->parent == treeEntityNil)
         *root = y;
     else if (x == x->parent->left)
         x->parent->left = y;
@@ -304,9 +304,10 @@ void addent(char entity[], entNode **root){
 
     while (x != treeEntityNil) {
         y = x;
-        if(strcmp(entity, x->value) == 0)
+        long cmp = strcmp(entity, x->value);
+        if(cmp == 0)
             return;
-        else if (strcmp(entity, x->value) < 0)
+        else if (cmp < 0)
             x = x->left;
         else
             x = x->right;
@@ -418,7 +419,7 @@ void outelem_right_rotate(outElem **root, outElem *x){
     if (y->right != treeOutElemNil)
         y->right->parent = x;
     y->parent = x->parent;
-    if (y->parent == treeOutElemNil)
+    if (x->parent == treeOutElemNil)
         *root = y;
     else if (x == x->parent->left)
         x->parent->left = y;
@@ -658,7 +659,7 @@ void ref_right_rotate(relRef **root, relRef *x){
     if (y->right != treeRelRefNil)
         y->right->parent = x;
     y->parent = x->parent;
-    if (y->parent == treeRelRefNil)
+    if (x->parent == treeRelRefNil)
         *root = y;
     else if (x == x->parent->left)
         x->parent->left = y;
@@ -822,7 +823,7 @@ void rel_right_rotate(relNode **root, relNode *x){
     if (y->right != treeRelationNil)
         y->right->parent = x;
     y->parent = x->parent;
-    if (y->parent == treeRelationNil)
+    if (x->parent == treeRelationNil)
         *root = y;
     else if (x == x->parent->left)
         x->parent->left = y;
@@ -890,11 +891,12 @@ void addrel(char relation[], char origEnt[], char destEnt[], entNode* entRoot, r
 
     while (x != treeRelationNil) {
         y = x;
-        if(strcmp(relation, x->value) == 0) {
+        long cmp = strcmp(relation, x->value);
+        if(cmp == 0) {
             addrel_ref(&(x->relationByName), origEnt, destEnt, entRoot, x); //Update existing relation values
             return;
         }
-        else if (strcmp(relation, x->value) < 0)
+        else if (cmp < 0)
             x = x->left;
         else
             x = x->right;

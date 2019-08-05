@@ -98,6 +98,7 @@ entNode         *treeEntityNil;
 relNode         *treeRelationNil;
 outElem         *treeOutElemNil;
 relRef          *treeRelRefNil;
+
 /**
  * This variable is used to keep trace of the maximum number of relation
  */
@@ -144,9 +145,9 @@ int main() {
     initialization();
     //Variables declaration
     char            command[6]; //This array contains the command read from stdin
-    char            *entityName; //This variable contains the entity name read from stdin (used for addent and first entity of addrel and delrel)
-    char            *entityDestName; //This variable contains the entity name read from stdin (used for id_dest entity in addrel and delrel)
-    char            *relationName;
+    char            entityName[100]; //This variable contains the entity name read from stdin (used for addent and first entity of addrel and delrel)
+    char            entityDestName[100]; //This variable contains the entity name read from stdin (used for id_dest entity in addrel and delrel)
+    char            relationName[100];
 
     entNode         *treeEntityRoot = treeEntityNil; //The root of the entities tree
     relNode         *treeRelationRoot = treeRelationNil; //The root of the relations tree
@@ -157,32 +158,31 @@ int main() {
     void inorder_entity_tree_walk(entNode *x);
     void addrel(char relation[], char origEnt[], char destEnt[], entNode* entRoot, relNode **root);
     void inorder_rel_tree_walk(relNode *x, int flag);
+    entNode* search_entity(entNode *root, char name[]);
     //End of functions' prototype
 
     while (scanf("%s", command)) {
         if (0 == strcmp(command, "addent")) {
-            scanf("%ms", &entityName);
+            scanf("%s\n", entityName);
             addent(entityName, &treeEntityRoot);
-            //DEBUG printf("addent\n\n");
+            search_entity(treeEntityRoot, entityName);
         } else if (0 == strcmp(command, "delent")) {
+            continue;
             //TODO call delent function
         } else if (0 == strcmp(command, "addrel")) {
-            scanf("%ms", &entityName);
-            scanf("%ms", &entityDestName);
-            scanf("%ms", &relationName);
+            scanf("%s", entityName);
+            scanf("%s", entityDestName);
+            scanf("%s\n", relationName);
             addrel(relationName, entityDestName, entityName, treeEntityRoot, &treeRelationRoot);
-            //DEBUG printf("addrel\n\n");
         } else if (0 == strcmp(command, "delrel")) {
+            continue;
             //TODO call delrel function
         } else if (0 == strcmp(command, "report")) {
-            //DEBUG printf("Entities: \n");
-            //DEBUG inorder_entity_tree_walk(treeEntityRoot);
-            //DEBUG printf("\n\nRelations: \n");
             inorder_rel_tree_walk(treeRelationRoot, 1);
-            printf("\n");
-        }else
+            fputs("\n", stdout);
+        }else {
             return 0;
-        command[0] = 'm'; entityName = NULL; entityDestName = NULL; //Change variables to set invalid values
+        }
     }
     return 0;
 }
@@ -195,7 +195,7 @@ int main() {
 */
 entNode *create_ent_node(char *name){
     entNode *newNode = malloc(sizeof(entNode));
-    newNode -> value     = name;
+    newNode -> value     = strdup(name);
     newNode -> RB        = 'r';
     newNode -> parent    = treeEntityNil;
     newNode -> right     = treeEntityNil;
@@ -252,6 +252,7 @@ void entity_right_rotate(entNode **root, entNode *x){
  * @param z the new node added to the tree
  */
 void addent_fixup(entNode **root, entNode *z){
+    //printf("Addent fixup for : %s", z->value);
     entNode* y;
     while (z->parent->RB == 'r'){
         if (z->parent == z->parent->parent->left){
@@ -319,8 +320,6 @@ void addent(char entity[], entNode **root){
         y->left = newEntity;
     else
         y->right = newEntity;
-    newEntity->left = treeEntityNil;
-    newEntity->right = treeEntityNil;
     newEntity->RB = 'r';
     //printf("Added entity: %s\n", newEntity->value);
     //printf("Before fixup \nparent: %s\t\tleft: %s\t\tright: %s\n", newEntity->parent->value, newEntity->left->value, newEntity->right->value);
@@ -351,15 +350,13 @@ void inorder_entity_tree_walk(entNode *x){
  */
 entNode* search_entity(entNode *root, char name[]){
     entNode *x = root;
-    int stringCmp;
-    while ((x != treeEntityNil)){
+    int stringCmp = strcmp(name, x->value);
+    while ((x != treeEntityNil) && stringCmp != 0){
+        if (stringCmp < 0)
+            x = x->left;
+        else
+            x = x->right;
         stringCmp = strcmp(name, x->value);
-        if (stringCmp != 0) {
-            if (stringCmp < 0)
-                x = x->left;
-            else
-                x = x->right;
-        } else break;
     }
     return x;
 }
@@ -553,6 +550,33 @@ relation *create_relation(char *incomingEnt, char *outEnt, entNode* root){
     return newNode;
 }
 
+relation *correct_position(relation *rel){
+    relation *currRel = rel;
+    if(currRel->prev != NULL) {
+        while (rel->counter > currRel->prev->counter) {
+            currRel = currRel->prev;
+            if (currRel->prev == NULL) break;
+        }
+    }
+    if(currRel->prev != NULL) {
+        while ((strcmp(rel->inEnt->value, currRel->prev->inEnt->value) < 0) && (rel->counter == currRel->prev->counter)) {
+            currRel = currRel->prev;
+            if (currRel->prev == NULL) break;
+        }
+    }
+    if(currRel != rel){
+        rel->prev->next = rel->next;
+        if (rel->next != NULL) rel->next->prev = rel->prev;
+        rel->prev = currRel->prev;
+        if (currRel->prev != NULL) currRel->prev->next = rel;
+        currRel->prev = rel;
+        rel->next = currRel;
+    }
+    if(rel->prev == NULL) //rel is now the head of the list
+        return rel;
+    return NULL;
+}
+
 /**
  * This function add a relation to the list of relations
  * @param newEntity the entity to add
@@ -563,24 +587,7 @@ relation* addrelation(relation* newEntity, relation *listEnd){
     listEnd -> next = newEntity;
     newEntity -> prev = listEnd;
 
-    /*relation *currRel = newEntity;
-    if(currRel->prev != NULL) {
-        while ((strcmp(newEntity->inEnt->value, currRel->prev->inEnt->value) < 0) && (currRel->counter <= currRel->prev->counter)) {
-            currRel = currRel->prev;
-            if (currRel->prev == NULL) break;
-        }
-    }
-    if(currRel != newEntity){
-        newEntity->prev->next = newEntity->next;
-        if (newEntity->next != NULL) newEntity->next->prev = newEntity->prev;
-        newEntity->prev = currRel->prev;
-        if (currRel->prev != NULL) currRel->prev->next = newEntity;
-        currRel->prev = newEntity;
-        newEntity->next = currRel;
-    }
-    if(newEntity->prev == NULL) //newEntity is now the head of the list
-        return newEntity;*/
-    return NULL;
+    return correct_position(newEntity);
 }
 
 /**
@@ -592,34 +599,11 @@ relation *update_relation(relation* rel, char *outEntity, entNode *entRoot){
     outElem *newOutElem = add_outelem(&(rel -> outelems), outEntity, entRoot);
     if (NULL != newOutElem) {
         rel -> counter++;
-        relation *currRel = rel;
-        if(currRel->prev != NULL) {
-            while (currRel->counter > currRel->prev->counter) {
-                currRel = currRel->prev;
-                if (currRel->prev == NULL) break;
-            }
-        }
-        if(currRel->prev != NULL) {
-            while ((strcmp(rel->inEnt->value, currRel->prev->inEnt->value) < 0) && (currRel->counter <= currRel->prev->counter)) {
-                currRel = currRel->prev;
-                if (currRel->prev == NULL) break;
-            }
-        }
-        if(currRel != rel){
-            rel->prev->next = rel->next;
-            if (rel->next != NULL) rel->next->prev = rel->prev;
-            rel->prev = currRel->prev;
-            if (currRel->prev != NULL) currRel->prev->next = rel;
-            currRel->prev = rel;
-            rel->next = currRel;
-        }
         elemRelList *newElem = malloc(sizeof(elemRelList));
         newElem -> next = newOutElem -> outEnt-> relations;
         newElem -> rel = rel;
         newOutElem -> outEnt -> relations = newElem;
-        if(rel->prev == NULL) //rel is now the head of the list
-            return rel;
-        return NULL;
+        return correct_position(rel);
     }
     return NULL;
 }
@@ -786,21 +770,21 @@ void addrel_ref(relRef **root, char *inEnt, char *outEnt, entNode *entRoot, relN
 */
 relNode *create_rel_node(char *name, char *origEnt, char *destEnt, entNode* root){
     relNode *newNode = malloc(sizeof(relNode));
-    newNode -> value            = name;
+    newNode -> value            = strdup(name);
     newNode -> RB               = 'r';
     newNode -> parent           = treeRelationNil;
     newNode -> right            = treeRelationNil;
     newNode -> left             = treeRelationNil;
     newNode -> relationsByCounterHead = create_relation(origEnt, destEnt, root);
+    if (newNode -> relationsByCounterHead == NULL){
+        free(newNode);
+        return NULL;
+    }
     newNode -> relationsByCounterEnd = newNode -> relationsByCounterHead;
     newNode -> relationsByCounterHead -> next = NULL;
     newNode -> relationsByCounterHead -> prev = NULL;
     newNode -> relationsByCounterHead -> outelems -> RB = 'b'; //Set the created root black
 
-    if (newNode -> relationsByCounterHead == NULL){
-        free(newNode);
-        return NULL;
-    }
     newNode -> relationByName   = create_relRef(newNode -> relationsByCounterHead);
     newNode -> relationByName -> RB = 'b';
     return newNode;
@@ -941,14 +925,17 @@ void addrel(char relation[], char origEnt[], char destEnt[], entNode* entRoot, r
  */
 void report(relNode *x){
     relation *current = x->relationsByCounterHead;
-    printf("%s ", x->value);
+    fputs(x->value, stdout);
+    fputs(" ", stdout);
     while (current->counter == x->relationsByCounterHead->counter) {
-        printf("%s ", current->inEnt->value);
+        fputs(current->inEnt->value, stdout);
+        fputs(" ", stdout);
         if(current->next != NULL)
             current = current->next;
         else break;
     }
-    printf("%d;", x->relationsByCounterHead->counter);
+    printf("%d",x->relationsByCounterHead->counter);
+    fputs("; ", stdout);
 }
 
 /**
@@ -962,6 +949,6 @@ void inorder_rel_tree_walk(relNode *x, int flag){
         //printf("%s ", x->value);
         inorder_rel_tree_walk(x->right, 0);
     } else if (flag == 1)
-        printf("none");
+        fputs("none", stdout);
 }
 //------------------------------ End functions for addrel ------------------------------

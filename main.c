@@ -158,14 +158,12 @@ int main() {
     void inorder_entity_tree_walk(entNode *x);
     void addrel(char relation[], char origEnt[], char destEnt[], entNode* entRoot, relNode **root);
     void inorder_rel_tree_walk(relNode *x, int flag);
-    entNode* search_entity(entNode *root, char name[]);
     //End of functions' prototype
 
     while (scanf("%s", command)) {
         if (0 == strcmp(command, "addent")) {
             scanf("%s\n", entityName);
             addent(entityName, &treeEntityRoot);
-            search_entity(treeEntityRoot, entityName);
         } else if (0 == strcmp(command, "delent")) {
             continue;
             //TODO call delent function
@@ -301,10 +299,11 @@ void addent(char entity[], entNode **root){
     entNode*    x = *root;
     entNode*    y = treeEntityNil;
     entNode     *newEntity;
+    long cmp;
 
     while (x != treeEntityNil) {
         y = x;
-        long cmp = strcmp(entity, x->value);
+        cmp = strcmp(entity, x->value);
         if(cmp == 0)
             return;
         else if (cmp < 0)
@@ -317,7 +316,7 @@ void addent(char entity[], entNode **root){
     if (y == treeEntityNil) {
         *root = newEntity;
     }
-    else if (strcmp(newEntity->value, y->value) < 0)
+    else if (cmp < 0)
         y->left = newEntity;
     else
         y->right = newEntity;
@@ -361,6 +360,49 @@ entNode* search_entity(entNode *root, char name[]){
     }
     return x;
 }
+
+/**
+ * This function search in the entity tree for the value specified as parameter
+ * @param root the entity tree root
+ * @param name the value to search for
+ * @return the node which contain the value or treeEntityNil if the value is not in the tree
+ */
+void search_double_entity(entNode *root, char name1[], char name2[], entNode *ret[2]){
+    entNode *x = root;
+    entNode *lastCommonNode = x;
+    long stringCmp1 = strcmp(name1, x->value);
+    long stringCmp2 = strcmp(name2, x->value);
+    int  compareCommon = 1;
+    while ((x != treeEntityNil) && stringCmp1 != 0){
+        if (stringCmp1 < 0) {
+            if ((stringCmp2 < 0) && compareCommon) {
+                stringCmp2 = strcmp(name2, x->value);
+                lastCommonNode = x;
+            } else compareCommon = 0;
+            x = x->left;
+        }
+        else {
+            if ((stringCmp2 > 0) && compareCommon) {
+                lastCommonNode = x;
+                stringCmp2 = strcmp(name2, x->value);
+            } else compareCommon = 0;
+            x = x->right;
+        }
+        if (x != treeEntityNil)
+            stringCmp1 = strcmp(name1, x->value);
+    }
+    ret[0] = x;
+    stringCmp2 = strcmp(name2, lastCommonNode->value);
+    while ((lastCommonNode != treeEntityNil) && stringCmp2 != 0){
+        if (stringCmp2 < 0)
+            lastCommonNode = lastCommonNode->left;
+        else
+            lastCommonNode = lastCommonNode->right;
+        if (lastCommonNode != treeEntityNil)
+            stringCmp2 = strcmp(name2, lastCommonNode->value);
+    }
+    ret[1] = lastCommonNode;
+}
 //------------------------------ End functions for entity tree ------------------------------
 
 
@@ -371,13 +413,13 @@ entNode* search_entity(entNode *root, char name[]){
 * @param outEnt the entity name
 * @return an outElem struct with values specified as parameters
 */
-outElem *create_outElem(entNode* root, char *outEnt){
+outElem *create_outElem(entNode *outEnt){
     outElem *newNode = malloc(sizeof(outElem));
     newNode -> parent    = treeOutElemNil;
     newNode -> left      = treeOutElemNil;
     newNode -> right     = treeOutElemNil;
     newNode -> RB        = 'r'; //This field indicates if the node is red or black, value is 'r' if red, 'b' if black
-    entNode *entity      = search_entity(root, outEnt);
+    entNode *entity      = outEnt;
     if (entity != treeEntityNil) {
         newNode->outEnt = entity;
         return newNode;
@@ -495,14 +537,14 @@ outElem* add_outelem(outElem **root, char *outEnt, entNode *entRoot){
         else
             x = x->right;
     }
-    newEntity = create_outElem(entRoot, outEnt);
+    newEntity = create_outElem(search_entity(entRoot, outEnt));
     if (newEntity == NULL)
         return NULL;
     newEntity->parent = y;
     if (y == treeOutElemNil) {
         *root = newEntity;
     }
-    else if (strcmp(newEntity->outEnt->value, y->outEnt->value) < 0)
+    else if (comparison < 0)
         y->left = newEntity;
     else
         y->right = newEntity;
@@ -524,19 +566,25 @@ outElem* add_outelem(outElem **root, char *outEnt, entNode *entRoot){
 * @return a relation struct values specified by parameters
 */
 relation *create_relation(char *incomingEnt, char *outEnt, entNode* root){
+    entNode *entities[2];
+    search_double_entity(root, incomingEnt, outEnt, entities);
     relation *newNode = malloc(sizeof(relation));
-    newNode -> inEnt     = search_entity(root, incomingEnt); //Entity with incoming relation
+    newNode -> inEnt  = entities[0]; //Entity with incoming relation
     if (newNode -> inEnt == treeEntityNil) {
         free(newNode);
         return NULL;
     }
     newNode -> counter   = 1; //Relations counter
-    newNode -> outelems  = create_outElem(root, outEnt); //Entities with outcoming relation
+    if (entities[1] == NULL) {
+        free(newNode);
+        return NULL;
+    }
+    newNode -> outelems  = create_outElem(entities[1]); //Entities with outcoming relation
     if (newNode -> outelems == NULL) {
         free(newNode);
         return NULL;
     }
-    newNode->outelems->RB = 'b';
+    newNode-> outelems->RB = 'b';
 
     elemRelList *newElem = malloc(sizeof(elemRelList));
     newElem -> next = newNode -> inEnt -> relations;
@@ -751,7 +799,7 @@ void addrel_ref(relRef **root, char *inEnt, char *outEnt, entNode *entRoot, relN
     if (y == treeRelRefNil) {
         *root = newEntity;
     }
-    else if (strcmp(newEntity->reference->inEnt->value, y->reference->inEnt->value) < 0)
+    else if (comparison < 0)
         y->left = newEntity;
     else
         y->right = newEntity;
@@ -888,10 +936,11 @@ void addrel(char relation[], char origEnt[], char destEnt[], entNode* entRoot, r
     relNode*    x = *root;
     relNode*    y = treeRelationNil;
     relNode     *newEntity;
+    long cmp;
 
     while (x != treeRelationNil) {
         y = x;
-        long cmp = strcmp(relation, x->value);
+        cmp = strcmp(relation, x->value);
         if(cmp == 0) {
             addrel_ref(&(x->relationByName), origEnt, destEnt, entRoot, x); //Update existing relation values
             return;
@@ -908,7 +957,7 @@ void addrel(char relation[], char origEnt[], char destEnt[], entNode* entRoot, r
     if (y == treeRelationNil) {
         *root = newEntity;
     }
-    else if (strcmp(newEntity->value, y->value) < 0)
+    else if (cmp < 0)
         y->left = newEntity;
     else
         y->right = newEntity;

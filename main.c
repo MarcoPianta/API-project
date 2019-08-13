@@ -38,21 +38,6 @@ typedef struct outcomingElem {
 } outElem;
 
 /**
-* This struct is the node of a subtree containing relations between entities, it contains pointer to the entity
-* involved, a counter to count number of incoming relations, and another tree which contains outcoming entities in
-* alphabetical order. The subtree is contained in relations tree
-*/
-struct relation {
-    struct relation         *parent;
-    struct relation         *left;
-    struct relation         *right;
-    char                    RB; //This field indicates if the node if red or black, value is 'r' if red, 'b' if black
-    entNode                 *inEnt; //Entity with incoming relation
-    int                     counter; //Entity with outcoming relation
-    outElem                 *outelems; //The pointer to the relation
-};
-
-/**
 * This struct is the node of a tree which contains pointer to a node of relations subtree to keep references to entity
 * in subtree alphabetically sorted
 */
@@ -77,6 +62,22 @@ typedef struct relationsNode {
     relation                *relationsByCounter; //The tree which contains the relation sorted by counter and name
     relRef                  *relationByName; //The root of the tree which keep relations sorted by incoming entity name
 } relNode;
+
+/**
+* This struct is the node of a subtree containing relations between entities, it contains pointer to the entity
+* involved, a counter to count number of incoming relations, and another tree which contains outcoming entities in
+* alphabetical order. The subtree is contained in relations tree
+*/
+struct relation {
+    struct relation         *parent;
+    struct relation         *left;
+    struct relation         *right;
+    char                    RB; //This field indicates if the node if red or black, value is 'r' if red, 'b' if black
+    entNode                 *inEnt; //Entity with incoming relation
+    int                     counter; //Entity with outcoming relation
+    outElem                 *outelems; //The pointer to the relation
+    relNode                 *relationName; //The reference to the relNode
+};
 
 /**
 * This struct is used for the list in entities tree which contains the relations in which the entity is involved.
@@ -161,6 +162,8 @@ int main() {
     void addent(char entity[], entNode **root);
     void inorder_entity_tree_walk(entNode *x);
     void addrel(char relation[], char origEnt[], char destEnt[], entNode* entRoot, relNode **root);
+    void delent(entNode **root, char *name, relNode *relNodeRoot);
+    void delrel(relNode *root, char *relName, char *origEnt, char *destEnt);
     void inorder_rel_tree_walk(relNode *x, int flag);
     //End of functions' prototype
 
@@ -169,16 +172,18 @@ int main() {
             scanf("%s\n", entityName);
             addent(entityName, &treeEntityRoot);
         } else if (0 == strcmp(command, "delent")) {
-            continue;
-            //TODO call delent function
+            scanf("%s\n", entityName);
+            delent(&treeEntityRoot, entityName, treeRelationRoot);
         } else if (0 == strcmp(command, "addrel")) {
             scanf("%s", entityName);
             scanf("%s", entityDestName);
             scanf("%s\n", relationName);
-            addrel(relationName, entityDestName, entityName, treeEntityRoot, &treeRelationRoot);
+            addrel(relationName, (entityDestName), (entityName), treeEntityRoot, &treeRelationRoot);
         } else if (0 == strcmp(command, "delrel")) {
-            continue;
-            //TODO call delrel function
+            scanf("%s", entityName);
+            scanf("%s", entityDestName);
+            scanf("%s\n", relationName);
+            delrel(treeRelationRoot, relationName, entityName, entityDestName);
         } else if (0 == strcmp(command, "report")) {
             inorder_rel_tree_walk(treeRelationRoot, 1);
             fputs("\n", stdout);
@@ -240,10 +245,10 @@ void entity_right_rotate(entNode **root, entNode *x){
     y->parent = x->parent;
     if (x->parent == treeEntityNil)
         *root = y;
-    else if (x == x->parent->left)
-        x->parent->left = y;
-    else
+    else if (x == x->parent->right)
         x->parent->right = y;
+    else
+        x->parent->left = y;
     y->right = x;
     x->parent = y;
 }
@@ -354,13 +359,14 @@ void inorder_entity_tree_walk(entNode *x){
  */
 entNode* search_entity(entNode *root, char name[]){
     entNode *x = root;
-    int stringCmp = strcmp(name, x->value);
+    int stringCmp;
+    if (x != treeEntityNil) stringCmp = strcmp(name, x->value);
     while ((x != treeEntityNil) && stringCmp != 0){
         if (stringCmp < 0)
             x = x->left;
         else
             x = x->right;
-        stringCmp = strcmp(name, x->value);
+        if (x != treeEntityNil) stringCmp = strcmp(name, x->value);
     }
     return x;
 }
@@ -374,8 +380,10 @@ entNode* search_entity(entNode *root, char name[]){
 void search_double_entity(entNode *root, char name1[], char name2[], entNode *ret[2]){
     entNode *x = root;
     entNode *lastCommonNode = x;
-    long stringCmp1 = strcmp(name1, x->value);
-    long stringCmp2 = strcmp(name2, x->value);
+    int stringCmp1;
+    int stringCmp2;
+    if (x != treeEntityNil) stringCmp1 = strcmp(name1, x->value);
+    if (x != treeEntityNil) stringCmp2 = strcmp(name2, x->value);
     int  compareCommon = 1;
     while ((x != treeEntityNil) && stringCmp1 != 0){
         if (stringCmp1 < 0) {
@@ -396,7 +404,7 @@ void search_double_entity(entNode *root, char name1[], char name2[], entNode *re
             stringCmp1 = strcmp(name1, x->value);
     }
     ret[0] = x;
-    stringCmp2 = strcmp(name2, lastCommonNode->value);
+    if (lastCommonNode != treeEntityNil) stringCmp2 = strcmp(name2, lastCommonNode->value);
     while ((lastCommonNode != treeEntityNil) && stringCmp2 != 0){
         if (stringCmp2 < 0)
             lastCommonNode = lastCommonNode->left;
@@ -408,6 +416,192 @@ void search_double_entity(entNode *root, char name1[], char name2[], entNode *re
     ret[1] = lastCommonNode;
 }
 //------------------------------ End functions for entity tree ------------------------------
+
+
+//------------------------------ Functions for delent------------------------------
+/**
+ * This function return the maximum value in entities tree
+ * @param root the root of the tree
+ * @return the maximum in the tree
+ */
+entNode* tree_entity_max(entNode *root){
+    entNode* x = root;
+    while (x->right != treeEntityNil)
+        x = x->right;
+    return x;
+}
+
+/**
+ * This function return the minimum value in entities tree
+ * @param root the root of the tree
+ * @return the minimum in the tree
+ */
+entNode* tree_entity_min(entNode *root){
+    entNode* x = root;
+    while (x->left != treeEntityNil)
+        x = x->left;
+    return x;
+}
+
+void entity_transplant(entNode **root, entNode **u, entNode **v){
+    if ((*u)->parent == treeEntityNil)
+        *root = *v;
+    else if (*u == (*u)->parent->left)
+        (*u)->parent->left = *v;
+    else
+        (*u)->parent->right = *v;
+    (*v)->parent = (*u)->parent;
+}
+
+void entity_delete_fixup(entNode **root, entNode *x){
+    entNode *w;
+    while (x != *root && x->RB == 'b'){
+        if (x == x->parent->left){
+            w = x->parent->right;
+            if (w->RB == 'r'){
+                w->RB = 'b';
+                x->parent->RB = 'r';
+                entity_left_rotate(root, x->parent);
+                w = x->parent->right;
+            }
+            if (w->left->RB == 'b' && w->right->RB == 'b') {
+                w->RB = 'r';
+                x = x->parent;
+            } else{
+                if (w->right->RB == 'b'){
+                    w->left->RB = 'b';
+                    w->RB = 'r';
+                    entity_right_rotate(root, w);
+                    w = x->parent->right;
+                }
+                w->RB = x->parent->RB;
+                x->parent->RB = 'b';
+                w->right->RB = 'b';
+                entity_left_rotate(root, x->parent);
+                x = *root;
+            }
+        } else{
+            w = x->parent->left;
+            if (w->RB == 'r'){
+                w->RB = 'b';
+                x->parent->RB = 'r';
+                entity_right_rotate(root, x->parent);
+                w = x->parent->left;
+            }
+            if (w->right->RB == 'b' && w->left->RB == 'b') {
+                w->RB = 'r';
+                x = x->parent;
+            } else{
+                if (w->left->RB == 'b'){
+                    w->right->RB = 'b';
+                    w->RB = 'r';
+                    entity_left_rotate(root, w);
+                    w = x->parent->left;
+                }
+                w->RB = x->parent->RB;
+                x->parent->RB = 'b';
+                w->left->RB = 'b';
+                entity_right_rotate(root, x->parent);
+                x = *root;
+            }
+        }
+    }
+    x->RB = 'b';
+}
+
+void entity_delete(entNode **root, entNode *z){
+    entNode *x;
+    entNode *y = z;
+    char yOriginalColor = y->RB;
+    if (z->left == treeEntityNil){
+        x = z->right;
+        entity_transplant(root, &z, &(z->right));
+    } else if (z->right == treeEntityNil){
+        x = z->left;
+        entity_transplant(root, &z, &(z->left));
+    } else{
+        y = tree_entity_min(z->right);
+        yOriginalColor = y->RB;
+        x = y->right;
+        if (y->parent == z)
+            x->parent = y;
+        else{
+            entity_transplant(root, &y, &(y->right));
+            y->right = z->right;
+            y->right->parent = y;
+        }
+        entity_transplant(root, &z, &y);
+        y->left = z->left;
+        y->left->parent = y;
+        y->RB = z->RB;
+    }
+    if (yOriginalColor == 'b')
+        entity_delete_fixup(root, x);
+    free(z);
+}
+
+void delent(entNode **root, char *name, relNode *relNodeRoot){
+    void decrement_relation(relation **root, relation* rel, entNode *outelem, outElem *out);
+    relNode* search_rel_node(relNode *root, char name[]);
+    void outelem_delete_all(outElem *x, relation *rel);
+    relation* relation_delete(relation **root, relation *z);
+    void ref_delete(relRef **root, relRef *z);
+    relRef* search_ref(relRef *root, char *k);
+
+    entNode *delNode = search_entity(*root, strdup(name));
+    if (delNode != treeEntityNil){
+        elemRelList *current = delNode->relations;
+        while (current != NULL){
+            if (delNode != current->rel->inEnt) {
+                decrement_relation(&(search_rel_node(relNodeRoot, current->rel->relationName->value)->relationsByCounter), current->rel, delNode, NULL);
+                current = current->next;
+            } else{
+                elemRelList *tmp = current->next;
+                relation_delete(&(current->rel->relationName->relationsByCounter), current->rel);
+                ref_delete(&(current->rel->relationName->relationByName), search_ref(current->rel->relationName->relationByName, current->rel->inEnt->value));
+                outelem_delete_all(current->rel->outelems, current->rel);
+                current = tmp;
+            }
+        }
+        entity_delete(root, delNode);
+    }
+}
+//------------------------------ End functions for delent ------------------------------
+
+
+//------------------------------ Functions for delrel ------------------------------
+void delrel(relNode *root, char *relName, char *origEnt, char *destEnt){
+    void decrement_relation(relation **root, relation* rel, entNode *outelem, outElem *out);
+    relNode* search_rel_node(relNode *root, char name[]);
+    relRef* search_ref(relRef *root, char *k);
+    outElem* search_outelem(outElem *root, char *k);
+
+    relNode *relNameNode = search_rel_node(root, strdup(relName));
+    if (relNameNode != treeRelationNil){
+        relRef *inEntRef = search_ref(relNameNode->relationByName, strdup(destEnt));
+        if (inEntRef != treeRelRefNil){
+            outElem *outEntRef = search_outelem(inEntRef->reference->outelems, strdup(origEnt));
+            if (outEntRef != treeOutElemNil){
+                elemRelList *current = outEntRef->outEnt->relations;
+                elemRelList *prev = NULL;
+                while (current != NULL){
+                    if (current->rel == inEntRef->reference){
+                        if (prev == NULL) outEntRef->outEnt->relations = current->next;
+                        else prev->next = current->next;
+                        break;
+                    } else{
+                        prev = current;
+                        current = current->next;
+                    }
+                }
+                decrement_relation(&(relNameNode->relationsByCounter), inEntRef->reference, NULL, outEntRef);
+                if(current != NULL) free(current);
+            }
+        }
+    }
+
+}
+//------------------------------ End functions for delrel ------------------------------
 
 
 //------------------------------ Functions for outelems tree ------------------------------
@@ -467,10 +661,10 @@ void outelem_right_rotate(outElem **root, outElem *x){
     y->parent = x->parent;
     if (x->parent == treeOutElemNil)
         *root = y;
-    else if (x == x->parent->left)
-        x->parent->left = y;
-    else
+    else if (x == x->parent->right)
         x->parent->right = y;
+    else
+        x->parent->left = y;
     y->right = x;
     x->parent = y;
 }
@@ -558,6 +752,173 @@ outElem* add_outelem(outElem **root, char *outEnt, entNode *entRoot){
     add_outelem_fixup(root, newEntity);
     return newEntity;
 }
+
+/**
+ * This function return the maximum value in outelems tree
+ * @param root the root of the tree
+ * @return the maximum in the tree
+ */
+outElem* tree_outelem_max(outElem *root){
+    outElem* x = root;
+    while (x->right != treeOutElemNil)
+        x = x->right;
+    return x;
+}
+
+/**
+ * This function return the minimum value in entities tree
+ * @param root the root of the tree
+ * @return the minimum in the tree
+ */
+outElem* tree_outelem_min(outElem *root){
+    outElem* x = root;
+    while (x->left != treeOutElemNil)
+        x = x->left;
+    return x;
+}
+
+void outelem_transplant(outElem **root, outElem **u, outElem **v){
+    if ((*u)->parent == treeOutElemNil)
+        *root = *v;
+    else if (*u == (*u)->parent->left)
+        (*u)->parent->left = *v;
+    else
+        (*u)->parent->right = *v;
+    (*v)->parent = (*u)->parent;
+}
+
+void outelem_delete_fixup(outElem **root, outElem *x){
+    outElem *w;
+    while (x != *root && x->RB == 'b'){
+        if (x == x->parent->left){
+            w = x->parent->right;
+            if (w->RB == 'r'){
+                w->RB = 'b';
+                x->parent->RB = 'r';
+                outelem_left_rotate(root, x->parent);
+                w = x->parent->right;
+            }
+            if (w->left->RB == 'b' && w->right->RB == 'b') {
+                w->RB = 'r';
+                x = x->parent;
+            } else{
+                if (w->right->RB == 'b'){
+                    w->left->RB = 'b';
+                    w->RB = 'r';
+                    outelem_right_rotate(root, w);
+                    w = x->parent->right;
+                }
+                w->RB = x->parent->RB;
+                x->parent->RB = 'b';
+                w->right->RB = 'b';
+                outelem_left_rotate(root, x->parent);
+                x = *root;
+            }
+        } else{
+            w = x->parent->left;
+            if (w->RB == 'r'){
+                w->RB = 'b';
+                x->parent->RB = 'r';
+                outelem_right_rotate(root, x->parent);
+                w = x->parent->left;
+            }
+            if (w->right->RB == 'b' && w->left->RB == 'b') {
+                w->RB = 'r';
+                x = x->parent;
+            } else{
+                if (w->left->RB == 'b'){
+                    w->right->RB = 'b';
+                    w->RB = 'r';
+                    outelem_left_rotate(root, w);
+                    w = x->parent->left;
+                }
+                w->RB = x->parent->RB;
+                x->parent->RB = 'b';
+                w->left->RB = 'b';
+                outelem_right_rotate(root, x->parent);
+                x = *root;
+            }
+        }
+    }
+    x->RB = 'b';
+}
+
+void outelem_delete(outElem **root, outElem *z){
+    outElem *x;
+    outElem *y = z;
+    char yOriginalColor = y->RB;
+    if (z->left == treeOutElemNil){
+        x = z->right;
+        outelem_transplant(root, &z, &(z->right));
+    } else if (z->right == treeOutElemNil){
+        x = z->left;
+        outelem_transplant(root, &z, &(z->left));
+    } else{
+        y = tree_outelem_min(z->right);
+        yOriginalColor = y->RB;
+        x = y->right;
+        if (y->parent == z)
+            x->parent = y;
+        else{
+            outelem_transplant(root, &y, &(y->right));
+            y->right = z->right;
+            y->right->parent = y;
+        }
+        outelem_transplant(root, &z, &y);
+        y->left = z->left;
+        y->left->parent = y;
+        y->RB = z->RB;
+    }
+    if (yOriginalColor == 'b')
+        outelem_delete_fixup(root, x);
+    free(z);
+}
+
+/**
+ * This function delete all the node in outelems and delete also reference to relation in entity
+ * @param x the root of the tree
+ * @param rel the relation which contains the root
+ */
+void outelem_delete_all(outElem *x, relation *rel){
+    if (x != treeOutElemNil){
+        outelem_delete_all(x->left, rel);
+        outelem_delete_all(x->right, rel);
+        elemRelList *current = x->outEnt->relations;
+        elemRelList *prev = NULL;
+        while (current != NULL){
+            if (current->rel == rel){
+                if (prev == NULL) x->outEnt->relations = current->next;
+                else prev->next = current->next;
+                free(current);
+                break;
+            } else{
+                prev = current;
+                current = current->next;
+            }
+        }
+        //free(x);
+    }
+}
+
+/**
+ * This function search in the entity tree for the value specified as parameter
+ * @param root the entity tree root
+ * @param name the value to search for
+ * @return the node which contain the value or treeEntityNil if the value is not in the tree
+ */
+outElem* search_outelem(outElem *root, char *k){
+    outElem *x = root;
+    int cmp;
+    if (x != treeOutElemNil) cmp = strcmp(k, x->outEnt->value);
+    while ((x != treeOutElemNil) && (cmp != 0)){
+        if (cmp < 0)
+            x = x->left;
+        else
+            x = x->right;
+        if (x != treeOutElemNil) cmp = strcmp(k, x->outEnt->value);
+    }
+    return x;
+}
 //------------------------------ End functions for outelems tree ------------------------------
 
 
@@ -569,9 +930,11 @@ outElem* add_outelem(outElem **root, char *outEnt, entNode *entRoot){
 * @param root the entity tree root used to search entities in tree
 * @return a relation struct values specified by parameters
 */
-relation *create_relation(char *incomingEnt, char *outEnt, entNode* root){
+relation *create_relation(char *incomingEnt, char *outEnt, entNode* root, relNode *relationName){
     entNode *entities[2];
-    search_double_entity(root, incomingEnt, outEnt, entities);
+    //search_double_entity(root, incomingEnt, outEnt, entities);
+    entities[0] = search_entity(root, incomingEnt);
+    entities[1] = search_entity(root, outEnt);
     relation *newNode = malloc(sizeof(relation));
     newNode->parent = treeRelNil;
     newNode->left = treeRelNil;
@@ -592,6 +955,7 @@ relation *create_relation(char *incomingEnt, char *outEnt, entNode* root){
         return NULL;
     }
     newNode-> outelems->RB = 'b';
+    newNode->relationName = relationName;
 
     elemRelList *newElem = malloc(sizeof(elemRelList));
     newElem -> next = newNode -> inEnt -> relations;
@@ -641,10 +1005,10 @@ void relation_right_rotate(relation **root, relation *x){
     y->parent = x->parent;
     if (x->parent == treeRelNil)
         *root = y;
-    else if (x == x->parent->left)
-        x->parent->left = y;
-    else
+    else if (x == x->parent->right)
         x->parent->right = y;
+    else
+        x->parent->left = y;
     y->right = x;
     x->parent = y;
 }
@@ -708,37 +1072,6 @@ void add_relation(relation *newNode, relation **root){
     while (x != treeRelNil) {
         y = x;
         cmp = strcmp(x->inEnt->value, newNode->inEnt->value);
-        /*if(newNode->counter == x->counter) {
-            //cmp = strcmp(x->inEnt->value, newNode->inEnt->value);
-            /*if (cmp < 0) {
-                x = x->parent;
-                y = x;
-                /*if (x != treeRelNil)
-                    cmp = strcmp(x->inEnt->value, newNode->inEnt->value);
-            }*/
-            /*if (cmp < 0){
-                if (x->parent->right == x) x->parent->right = newNode;
-                else if (x->parent->left == x) x->parent->left = newNode;
-                newNode->parent = x->parent;
-                newNode->left = x->left;
-                newNode->right = x->right;
-                x->parent = treeRelNil;
-                x->left = treeRelNil;
-                x->right = treeRelNil;
-                y = newNode;
-                newNode = x;
-                x = x->right;
-            }*/
-            /*while ((x != treeRelNil) && (x->counter == newNode->counter)) {
-                y = x;
-                cmp = strcmp(x->inEnt->value, newNode->inEnt->value);
-                if (cmp < 0)
-                    x = x->left;
-                else
-                    x = x->right;
-            }
-            break;
-        }*/
         if ((newNode->counter < x->counter) || ((newNode->counter == x->counter) && (cmp < 0)))
             x = x->left;
         else
@@ -761,8 +1094,8 @@ void add_relation(relation *newNode, relation **root){
  * @param root the root of the tree
  * @return the maximum in the tree
  */
-relation* tree_max(relation *root){
-    relation* x = root;
+relation* tree_relation_max(relation *root){
+    relation *x = root;
     while (x->right != treeRelNil)
         x = x->right;
     return x;
@@ -773,8 +1106,8 @@ relation* tree_max(relation *root){
  * @param root the root of the tree
  * @return the minimum in the tree
  */
-relation* tree_min(relation *root){
-    relation* x = root;
+relation* tree_relation_min(relation *root){
+    relation *x = root;
     while (x->left != treeRelNil)
         x = x->left;
     return x;
@@ -857,7 +1190,7 @@ relation* relation_delete(relation **root, relation *z){
         x = z->left;
         relation_transplant(root, &z, &(z->left));
     } else{
-        y = tree_min(z->right);
+        y = tree_relation_min(z->right);
         yOriginalColor = y->RB;
         x = y->right;
         if (y->parent == z)
@@ -878,7 +1211,7 @@ relation* relation_delete(relation **root, relation *z){
 }
 
 /**
- * This function update an existing relation
+ * This function update an existing relation adding one to the counter
  * @param rel the relation to be updated
  * @param outEntity the entity name with outgoing relation to be added to outelems
  */
@@ -902,9 +1235,39 @@ void update_relation(relation **root, relation* rel, char *outEntity, entNode *e
     }
 }
 
+/**
+ * This function update an existing relation subtracting one to the relation
+ * @param rel the relation to be updated
+ */
+void decrement_relation(relation **root, relation* rel, entNode *outelem, outElem *out){
+    outElem *outElement;
+    if (out != NULL) outElement = out;
+    else outElement = search_outelem(rel->outelems, outelem->value);
+
+    if (((rel->left->counter < rel->counter - 1) && (rel->right->counter > rel->counter - 1) &&
+         (((rel->parent->left == rel) && (rel->parent->counter > rel->counter - 1)) ||
+          ((rel->parent->right == rel) && (rel->parent->counter < rel->counter - 1))))) {
+        rel->counter--;
+        outelem_delete(&(rel->outelems), outElement);
+    } else {
+        relation *z = relation_delete(root, rel);
+        z->counter--;
+        outelem_delete(&(z->outelems), outElement);
+        z->parent = treeRelNil;
+        z->left = treeRelNil;
+        z->right = treeRelNil;
+        add_relation(z, root);
+    }
+}
+
+/**
+ * This function find the predecessor of the element passed as argument
+ * @param x the node of which find the predecessor
+ * @return the predecessor of x
+ */
 relation* tree_predecessor(relation* x){
     if (x->left != treeRelNil)
-        return tree_max(x->left);
+        return tree_relation_max(x->left);
     relation *y = x->parent;
     while ((y != treeRelNil) && (x == y->left)){
         x = y;
@@ -913,66 +1276,23 @@ relation* tree_predecessor(relation* x){
     return y;
 }
 
+/**
+ * This function find the successor of the element passed as argument
+ * @param x the node of which find the successor
+ * @return the successor of x
+ */
+relation* tree_successor(relation* x){
+    if (x->right != treeRelNil)
+        return tree_relation_min(x->right);
+    relation *y = x->parent;
+    while ((y != treeRelNil) && (x == y->right)){
+        x = y;
+        y = y->parent;
+    }
+    return y;
+}
+
 //TODO end of changes
-
-
-/*relation *correct_position(relation *rel){
-    relation *currRel = rel;
-    if(currRel->prev != NULL) {
-        while (rel->counter > currRel->prev->counter) {
-            currRel = currRel->prev;
-            if (currRel->prev == NULL) break;
-        }
-    }
-    if(currRel->prev != NULL) {
-        while ((strcmp(rel->inEnt->value, currRel->prev->inEnt->value) < 0) && (rel->counter == currRel->prev->counter)) {
-            currRel = currRel->prev;
-            if (currRel->prev == NULL) break;
-        }
-    }
-    if(currRel != rel){
-        rel->prev->next = rel->next;
-        if (rel->next != NULL) rel->next->prev = rel->prev;
-        rel->prev = currRel->prev;
-        if (currRel->prev != NULL) currRel->prev->next = rel;
-        currRel->prev = rel;
-        rel->next = currRel;
-    }
-    if(rel->prev == NULL) //rel is now the head of the list
-        return rel;
-    return NULL;
-}
-
-/**
- * This function add a relation to the list of relations
- * @param newEntity the entity to add
- * @param listEnd the end of the list of relation
- */
-/*relation* addrelation(relation* newEntity, relation *listEnd){
-    newEntity -> next = listEnd -> next;
-    listEnd -> next = newEntity;
-    newEntity -> prev = listEnd;
-
-    return correct_position(newEntity);
-}
-
-/**
- * This function update an existing relation
- * @param rel the relation to be updated
- * @param outEntity the entity name with outgoing relation to be added to outelems
- */
-/*relation *update_relation(relation* rel, char *outEntity, entNode *entRoot){
-    outElem *newOutElem = add_outelem(&(rel -> outelems), outEntity, entRoot);
-    if (NULL != newOutElem) {
-        rel -> counter++;
-        elemRelList *newElem = malloc(sizeof(elemRelList));
-        newElem -> next = newOutElem -> outEnt-> relations;
-        newElem -> rel = rel;
-        newOutElem -> outEnt -> relations = newElem;
-        return correct_position(rel);
-    }
-    return NULL;
-}*/
 //------------------------------ End functions for relation list ------------------------------
 
 
@@ -1026,10 +1346,10 @@ void ref_right_rotate(relRef **root, relRef *x){
     y->parent = x->parent;
     if (x->parent == treeRelRefNil)
         *root = y;
-    else if (x == x->parent->left)
-        x->parent->left = y;
-    else
+    else if (x == x->parent->right)
         x->parent->right = y;
+    else
+        x->parent->left = y;
     y->right = x;
     x->parent = y;
 }
@@ -1103,7 +1423,7 @@ void addrel_ref(relRef **root, char *inEnt, char *outEnt, entNode *entRoot, relN
         else
             x = x->right;
     }
-    relation* newRel = create_relation(inEnt, outEnt, entRoot);
+    relation* newRel = create_relation(inEnt, outEnt, entRoot, rel);
     if (newRel == NULL)
         return;
 
@@ -1122,6 +1442,140 @@ void addrel_ref(relRef **root, char *inEnt, char *outEnt, entNode *entRoot, relN
     newEntity->RB = 'r';
     addrel_ref_fixup(root, newEntity);
 }
+
+/**
+ * This function return the maximum value in reference tree
+ * @param root the root of the tree
+ * @return the maximum in the tree
+ */
+relRef* tree_ref_max(relRef *root){
+    relRef* x = root;
+    while (x->right != treeRelRefNil)
+        x = x->right;
+    return x;
+}
+
+/**
+ * This function return the minimum value in reference tree
+ * @param root the root of the tree
+ * @return the minimum in the tree
+ */
+relRef* tree_ref_min(relRef *root){
+    relRef* x = root;
+    while (x->left != treeRelRefNil)
+        x = x->left;
+    return x;
+}
+
+void ref_transplant(relRef **root, relRef **u, relRef **v){
+    if ((*u)->parent == treeRelRefNil)
+        *root = *v;
+    else if (*u == (*u)->parent->left)
+        (*u)->parent->left = *v;
+    else
+        (*u)->parent->right = *v;
+    (*v)->parent = (*u)->parent;
+}
+
+void ref_delete_fixup(relRef **root, relRef *x){
+    relRef *w;
+    while (x != *root && x->RB == 'b'){
+        if (x == x->parent->left){
+            w = x->parent->right;
+            if (w->RB == 'r'){
+                w->RB = 'b';
+                x->parent->RB = 'r';
+                ref_left_rotate(root, x->parent);
+                w = x->parent->right;
+            }
+            if (w->left->RB == 'b' && w->right->RB == 'b') {
+                w->RB = 'r';
+                x = x->parent;
+            } else{
+                if (w->right->RB == 'b'){
+                    w->left->RB = 'b';
+                    w->RB = 'r';
+                    ref_right_rotate(root, w);
+                    w = x->parent->right;
+                }
+                w->RB = x->parent->RB;
+                x->parent->RB = 'b';
+                w->right->RB = 'b';
+                ref_left_rotate(root, x->parent);
+                x = *root;
+            }
+        } else{
+            w = x->parent->left;
+            if (w->RB == 'r'){
+                w->RB = 'b';
+                x->parent->RB = 'r';
+                ref_right_rotate(root, x->parent);
+                w = x->parent->left;
+            }
+            if (w->right->RB == 'b' && w->left->RB == 'b') {
+                w->RB = 'r';
+                x = x->parent;
+            } else{
+                if (w->left->RB == 'b'){
+                    w->right->RB = 'b';
+                    w->RB = 'r';
+                    ref_left_rotate(root, w);
+                    w = x->parent->left;
+                }
+                w->RB = x->parent->RB;
+                x->parent->RB = 'b';
+                w->left->RB = 'b';
+                ref_right_rotate(root, x->parent);
+                x = *root;
+            }
+        }
+    }
+    x->RB = 'b';
+}
+
+void ref_delete(relRef **root, relRef *z){
+    relRef *x;
+    relRef *y = z;
+    char yOriginalColor = y->RB;
+    if (z->left == treeRelRefNil){
+        x = z->right;
+        ref_transplant(root, &z, &(z->right));
+    } else if (z->right == treeRelRefNil){
+        x = z->left;
+        ref_transplant(root, &z, &(z->left));
+    } else{
+        y = tree_ref_min(z->right);
+        yOriginalColor = y->RB;
+        x = y->right;
+        if (y->parent == z)
+            x->parent = y;
+        else{
+            ref_transplant(root, &y, &(y->right));
+            y->right = z->right;
+            y->right->parent = y;
+        }
+        ref_transplant(root, &z, &y);
+        y->left = z->left;
+        y->left->parent = y;
+        y->RB = z->RB;
+    }
+    if (yOriginalColor == 'b')
+        ref_delete_fixup(root, x);
+}
+
+relRef* search_ref(relRef *root, char *k){
+    relRef *x = root;
+    int cmp;
+    if (x != treeRelRefNil) cmp = strcmp(k, x->reference->inEnt->value);
+    while ((x != treeRelRefNil) && (cmp != 0)){
+        if (cmp < 0)
+            x = x->left;
+        else
+            x = x->right;
+        if (x != treeRelRefNil) cmp = strcmp(k, x->reference->inEnt->value);
+    }
+    return x;
+}
 //------------------------------ End functions for relation reference tree ------------------------------
 
 
@@ -1138,7 +1592,7 @@ relNode *create_rel_node(char *name, char *origEnt, char *destEnt, entNode* root
     newNode -> parent           = treeRelationNil;
     newNode -> right            = treeRelationNil;
     newNode -> left             = treeRelationNil;
-    newNode -> relationsByCounter = create_relation(origEnt, destEnt, root);
+    newNode -> relationsByCounter = create_relation(origEnt, destEnt, root, NULL);
     if (newNode -> relationsByCounter == NULL){
         free(newNode);
         return NULL;
@@ -1184,10 +1638,10 @@ void rel_right_rotate(relNode **root, relNode *x){
     y->parent = x->parent;
     if (x->parent == treeRelationNil)
         *root = y;
-    else if (x == x->parent->left)
-        x->parent->left = y;
-    else
+    else if (x == x->parent->right)
         x->parent->right = y;
+    else
+        x->parent->left = y;
     y->right = x;
     x->parent = y;
 }
@@ -1264,6 +1718,7 @@ void addrel(char relation[], char origEnt[], char destEnt[], entNode* entRoot, r
     newEntity = create_rel_node(relation, origEnt, destEnt, entRoot);
     if (newEntity == NULL)
         return;
+    newEntity->relationsByCounter->relationName = newEntity;
     newEntity->parent = y;
     if (y == treeRelationNil) {
         *root = newEntity;
@@ -1282,23 +1737,47 @@ void addrel(char relation[], char origEnt[], char destEnt[], entNode* entRoot, r
 }
 
 /**
+ * This function search in the relNode tree for the value specified as parameter
+ * @param root the relNode tree root
+ * @param name the value to search for
+ * @return the node which contain the value or treeRelationNil if the value is not in the tree
+ */
+relNode* search_rel_node(relNode *root, char name[]){
+    relNode *x = root;
+    int stringCmp;
+    if (x != treeRelationNil) stringCmp = strcmp(name, x->value);
+    while ((x != treeRelationNil) && stringCmp != 0){
+        if (stringCmp < 0)
+            x = x->left;
+        else
+            x = x->right;
+        if (x != treeRelationNil) stringCmp = strcmp(name, x->value);
+    }
+    return x;
+}
+
+/**
  * This function prints the values of the node specified formatted for report function
  * @param x the node of which to print the values
  */
 void report(relNode *x){
-    relation *current = tree_max(x->relationsByCounter);
-    int max = current->counter;
-    fputs(x->value, stdout);
-    fputs(" ", stdout);
-    while (current->counter == max) {
-        fputs(current->inEnt->value, stdout);
-        fputs(" ", stdout);
-        current = tree_predecessor(current);
-        if(current == treeRelNil)
-            break;
+    relation *current = tree_relation_max(x->relationsByCounter);
+    if(current != treeRelNil) {
+        int max = current->counter;
+        if (max != 0) {
+            fputs(x->value, stdout);
+            fputs(" ", stdout);
+            while (current->counter == max) {
+                fputs(current->inEnt->value, stdout);
+                fputs(" ", stdout);
+                current = tree_predecessor(current);
+                if (current == treeRelNil)
+                    break;
+            }
+            printf("%d", max);
+            fputs("; ", stdout);
+        }
     }
-    printf("%d",max);
-    fputs("; ", stdout);
 }
 
 /**

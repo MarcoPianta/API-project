@@ -568,14 +568,28 @@ void delent(entNode **root, char *name, relNode *relNodeRoot){
                 //}
             } else{
                 if (!sameRel) {
-                    if (current->next != NULL) sameRel = current->rel == current->next->rel;
+                    /*elemRelList *prev = current;
+                    elemRelList *tmp = current->next;
+                    relation *currRel = current->rel;
+                    while (tmp != NULL){
+                        if (tmp->rel->relationName == currRel->relationName && tmp->rel->inEnt == currRel->inEnt){
+                            prev->next = tmp->next;
+                        }
+                        prev = tmp;
+                        tmp = tmp->next;
+                    }*/
                     elemRelList *tmp;
+                    if (current->next != NULL) sameRel = current->rel == current->next->rel;
                     if (sameRel) tmp = current->next->next;
                     else tmp = current->next;
-                    relation_delete(&(current->rel->relationName->relationsByCounter), current->rel);
-                    ref_delete(&(current->rel->relationName->relationByName), search_ref(current->rel->relationName->relationByName, current->rel->inEnt->value));
-                    outelem_delete_all(current->rel->outelems, current->rel);
+                    if (search_ref(current->rel->relationName->relationByName, current->rel->inEnt->value) != treeRelRefNil) {
+                        relation_delete(&(current->rel->relationName->relationsByCounter), current->rel);
+                        ref_delete(&(current->rel->relationName->relationByName),
+                                   search_ref(current->rel->relationName->relationByName, current->rel->inEnt->value));
+                        outelem_delete_all(current->rel->outelems, current->rel);
+                    }
                     current = tmp;
+                    sameRel = 0;
                 }else{
                     if (current->next != NULL) sameRel = current->rel == current->next->rel;
                     elemRelList *tmp = current->next;

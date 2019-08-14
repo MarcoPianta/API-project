@@ -547,20 +547,41 @@ void delent(entNode **root, char *name, relNode *relNodeRoot){
     relation* relation_delete(relation **root, relation *z);
     void ref_delete(relRef **root, relRef *z);
     relRef* search_ref(relRef *root, char *k);
+    int sameRel = 0;
 
     entNode *delNode = search_entity(*root, strdup(name));
     if (delNode != treeEntityNil){
         elemRelList *current = delNode->relations;
         while (current != NULL){
             if (delNode != current->rel->inEnt) {
-                decrement_relation(&(search_rel_node(relNodeRoot, current->rel->relationName->value)->relationsByCounter), current->rel, delNode, NULL);
-                current = current->next;
+                //if(!sameRel) {
+                    decrement_relation(
+                            &(search_rel_node(relNodeRoot, current->rel->relationName->value)->relationsByCounter),
+                            current->rel, delNode, NULL);
+                    if (current->next != NULL) sameRel = current->rel == current->next->rel;
+                    current = current->next;
+                /*} else{
+                    if (current->next != NULL) sameRel = current->rel == current->next->rel;
+                    elemRelList *tmp = current->next;
+                    free(current);
+                    current = tmp;*/
+                //}
             } else{
-                elemRelList *tmp = current->next;
-                relation_delete(&(current->rel->relationName->relationsByCounter), current->rel);
-                ref_delete(&(current->rel->relationName->relationByName), search_ref(current->rel->relationName->relationByName, current->rel->inEnt->value));
-                outelem_delete_all(current->rel->outelems, current->rel);
-                current = tmp;
+                if (!sameRel) {
+                    if (current->next != NULL) sameRel = current->rel == current->next->rel;
+                    elemRelList *tmp;
+                    if (sameRel) tmp = current->next->next;
+                    else tmp = current->next;
+                    relation_delete(&(current->rel->relationName->relationsByCounter), current->rel);
+                    ref_delete(&(current->rel->relationName->relationByName), search_ref(current->rel->relationName->relationByName, current->rel->inEnt->value));
+                    outelem_delete_all(current->rel->outelems, current->rel);
+                    current = tmp;
+                }else{
+                    if (current->next != NULL) sameRel = current->rel == current->next->rel;
+                    elemRelList *tmp = current->next;
+                    free(current);
+                    current = tmp;
+                }
             }
         }
         entity_delete(root, delNode);
@@ -1113,6 +1134,22 @@ relation* tree_relation_min(relation *root){
     return x;
 }
 
+/**
+ * This function find the successor of the element passed as argument
+ * @param x the node of which find the successor
+ * @return the successor of x
+ */
+relation* tree_successor(relation* x){
+    if (x->right != treeRelNil)
+        return tree_relation_min(x->right);
+    relation *y = x->parent;
+    while ((y != treeRelNil) && (x == y->right)){
+        x = y;
+        y = y->parent;
+    }
+    return y;
+}
+
 void relation_transplant(relation **root, relation **u, relation **v){
     if ((*u)->parent == treeRelNil)
         *root = *v;
@@ -1244,9 +1281,10 @@ void decrement_relation(relation **root, relation* rel, entNode *outelem, outEle
     if (out != NULL) outElement = out;
     else outElement = search_outelem(rel->outelems, outelem->value);
 
-    if (((rel->left->counter < rel->counter - 1) && (rel->right->counter > rel->counter - 1) &&
-         (((rel->parent->left == rel) && (rel->parent->counter > rel->counter - 1)) ||
-          ((rel->parent->right == rel) && (rel->parent->counter < rel->counter - 1))))) {
+    if ((( ( ((rel->left->counter < rel->counter - 1) && (rel->left != treeRelNil) ) &&
+            ((rel->right->counter > rel->counter - 1) && (rel->right != treeRelNil)))) &&
+            (((rel->parent->left == rel) && (rel->parent->counter > rel->counter - 1) && (rel->parent != treeRelNil)) ||
+            ((rel->parent->right == rel) && (rel->parent->counter < rel->counter - 1) && (rel->parent != treeRelNil))))) {
         rel->counter--;
         outelem_delete(&(rel->outelems), outElement);
     } else {
@@ -1270,22 +1308,6 @@ relation* tree_predecessor(relation* x){
         return tree_relation_max(x->left);
     relation *y = x->parent;
     while ((y != treeRelNil) && (x == y->left)){
-        x = y;
-        y = y->parent;
-    }
-    return y;
-}
-
-/**
- * This function find the successor of the element passed as argument
- * @param x the node of which find the successor
- * @return the successor of x
- */
-relation* tree_successor(relation* x){
-    if (x->right != treeRelNil)
-        return tree_relation_min(x->right);
-    relation *y = x->parent;
-    while ((y != treeRelNil) && (x == y->right)){
         x = y;
         y = y->parent;
     }

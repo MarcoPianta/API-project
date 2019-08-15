@@ -142,7 +142,7 @@ void initialization(){
     treeRelNil->right = treeRelNil;
     treeRelNil->RB = 'b';
 }
-
+int allZero = 1;
 /**
 * The main read a string of character from stdin and call the appropriate function
 */
@@ -187,6 +187,7 @@ int main() {
         } else if (0 == strcmp(command, "report")) {
             inorder_rel_tree_walk(treeRelationRoot, 1);
             fputs("\n", stdout);
+            allZero = 1;
         }else {
             return 0;
         }
@@ -510,6 +511,7 @@ void entity_delete_fixup(entNode **root, entNode *x){
 }
 
 void entity_delete(entNode **root, entNode *z){
+    entNode *toFree = z;
     entNode *x;
     entNode *y = z;
     char yOriginalColor = y->RB;
@@ -537,7 +539,8 @@ void entity_delete(entNode **root, entNode *z){
     }
     if (yOriginalColor == 'b')
         entity_delete_fixup(root, x);
-    free(z);
+    free(toFree->value);
+    free(toFree);
 }
 
 void delent(entNode **root, char *name, relNode *relNodeRoot){
@@ -548,8 +551,9 @@ void delent(entNode **root, char *name, relNode *relNodeRoot){
     void ref_delete(relRef **root, relRef *z);
     relRef* search_ref(relRef *root, char *k);
     int sameRel = 0;
+    char *entName = strdup(name);
 
-    entNode *delNode = search_entity(*root, strdup(name));
+    entNode *delNode = search_entity(*root, entName);
     if (delNode != treeEntityNil){
         elemRelList *current = delNode->relations;
         while (current != NULL){
@@ -600,6 +604,7 @@ void delent(entNode **root, char *name, relNode *relNodeRoot){
         }
         entity_delete(root, delNode);
     }
+    free(entName);
 }
 //------------------------------ End functions for delent ------------------------------
 
@@ -611,11 +616,14 @@ void delrel(relNode *root, char *relName, char *origEnt, char *destEnt){
     relRef* search_ref(relRef *root, char *k);
     outElem* search_outelem(outElem *root, char *k);
 
-    relNode *relNameNode = search_rel_node(root, strdup(relName));
+    char *origName = strdup(origEnt);
+    char *destName = strdup(destEnt);
+    char *relationName = strdup(relName);
+    relNode *relNameNode = search_rel_node(root, relationName);
     if (relNameNode != treeRelationNil){
-        relRef *inEntRef = search_ref(relNameNode->relationByName, strdup(destEnt));
+        relRef *inEntRef = search_ref(relNameNode->relationByName, destName);
         if (inEntRef != treeRelRefNil){
-            outElem *outEntRef = search_outelem(inEntRef->reference->outelems, strdup(origEnt));
+            outElem *outEntRef = search_outelem(inEntRef->reference->outelems, origName);
             if (outEntRef != treeOutElemNil){
                 elemRelList *current = outEntRef->outEnt->relations;
                 elemRelList *prev = NULL;
@@ -634,7 +642,9 @@ void delrel(relNode *root, char *relName, char *origEnt, char *destEnt){
             }
         }
     }
-
+    free(origName);
+    free(destName);
+    free(relationName);
 }
 //------------------------------ End functions for delrel ------------------------------
 
@@ -931,7 +941,7 @@ void outelem_delete_all(outElem *x, relation *rel){
                 current = current->next;
             }
         }
-        //free(x);
+        free(x);
     }
 }
 
@@ -1630,6 +1640,7 @@ relNode *create_rel_node(char *name, char *origEnt, char *destEnt, entNode* root
     newNode -> left             = treeRelationNil;
     newNode -> relationsByCounter = create_relation(origEnt, destEnt, root, NULL);
     if (newNode -> relationsByCounter == NULL){
+        free(newNode->value);
         free(newNode);
         return NULL;
     }
@@ -1796,8 +1807,7 @@ relNode* search_rel_node(relNode *root, char name[]){
  * This function prints the values of the node specified formatted for report function
  * @param x the node of which to print the values
  */
-void report(relNode *x){
-    relation *current = tree_relation_max(x->relationsByCounter);
+void report(relNode *x, relation *current){
     if(current != treeRelNil) {
         int max = current->counter;
         if (max != 0) {
@@ -1822,11 +1832,17 @@ void report(relNode *x){
  */
 void inorder_rel_tree_walk(relNode *x, int flag){
     if (x != treeRelationNil){
+        relation *current = tree_relation_max(x->relationsByCounter);
+        if (allZero && current->counter == 0) allZero = 1;
+        else allZero = 0;
         inorder_rel_tree_walk(x->left, 0);
-        report(x);
-        //printf("%s ", x->value);
+        report(x, current);
         inorder_rel_tree_walk(x->right, 0);
-    } else if (flag == 1)
+    } else if (flag == 1) {
+        fputs("none", stdout);
+        return;
+    }
+    if (allZero && flag)
         fputs("none", stdout);
 }
 //------------------------------ End functions for addrel ------------------------------

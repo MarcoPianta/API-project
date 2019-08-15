@@ -1116,8 +1116,8 @@ void add_relation(relation *newNode, relation **root){
 
     while (x != treeRelNil) {
         y = x;
-        cmp = strcmp(x->inEnt->value, newNode->inEnt->value);
-        if ((newNode->counter < x->counter) || ((newNode->counter == x->counter) && (cmp < 0)))
+        //cmp = strcmp(x->inEnt->value, newNode->inEnt->value);
+        if ((newNode->counter < x->counter)/* || ((newNode->counter == x->counter) && (cmp < 0))*/)
             x = x->left;
         else
             x = x->right;
@@ -1126,7 +1126,7 @@ void add_relation(relation *newNode, relation **root){
     if (y == treeRelNil) {
         *root = newNode;
     }
-    else if ((newNode->counter < y->counter) || ((newNode->counter == y->counter) && (cmp < 0)))
+    else if ((newNode->counter < y->counter)/* || ((newNode->counter == y->counter) && (cmp < 0))*/)
         y->left = newNode;
     else
         y->right = newNode;
@@ -1337,7 +1337,6 @@ relation* tree_predecessor(relation* x){
     }
     return y;
 }
-
 //TODO end of changes
 //------------------------------ End functions for relation list ------------------------------
 
@@ -1622,6 +1621,17 @@ relRef* search_ref(relRef *root, char *k){
     }
     return x;
 }
+
+void inorder_ref_tree_walk(relRef *x, int val) {
+    if (x != treeRelRefNil) {
+        inorder_ref_tree_walk(x->left, val);
+        if (val == x->reference->counter) {
+            fputs(x->reference->inEnt->value, stdout);
+            fputs(" ", stdout);
+        }
+        inorder_ref_tree_walk(x->right, val);
+    }
+}
 //------------------------------ End functions for relation reference tree ------------------------------
 
 
@@ -1813,13 +1823,14 @@ void report(relNode *x, relation *current){
         if (max != 0) {
             fputs(x->value, stdout);
             fputs(" ", stdout);
-            while (current->counter == max) {
+            /*while (current->counter == max) {
                 fputs(current->inEnt->value, stdout);
                 fputs(" ", stdout);
                 current = tree_predecessor(current);
                 if (current == treeRelNil)
                     break;
-            }
+            }*/
+            inorder_ref_tree_walk(x->relationByName, max);
             printf("%d", max);
             fputs("; ", stdout);
         }
